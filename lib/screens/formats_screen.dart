@@ -9,6 +9,7 @@ import '../theme.dart';
 import 'dart:io';
 import 'dart:typed_data';
 import '../services/supabase_backup_service.dart';
+import 'package:file_selector/file_selector.dart' as file_selector;
 
 class FormatsScreen extends StatefulWidget {
   const FormatsScreen({super.key});
@@ -19,6 +20,9 @@ class FormatsScreen extends StatefulWidget {
 
 class _FormatsScreenState extends State<FormatsScreen> {
   bool _isLoading = true;
+  bool _isUploading = false;
+  double _uploadProgress = 0.0;
+  String _uploadStatus = '';
   List<String> _currentPath = [];
   List<String> _currentFolders = [];
   List<StorageItem> _currentFiles = [];
@@ -135,15 +139,96 @@ class _FormatsScreenState extends State<FormatsScreen> {
     }
   }
 
+  Future<void> _uploadFolder() async {
+    try {
+      final directoryPathsNullable = await file_selector.getDirectoryPaths();
+      final List<String> directoryPaths = directoryPathsNullable.whereType<String>().toList();
+      
+      if (directoryPaths.isEmpty) return;
+
+      final List<Map<String, dynamic>> allFiles = [];
+      for (final directoryPath in directoryPaths) {
+        final dir = Directory(directoryPath);
+        final dirName = dir.path.split(Platform.pathSeparator).last;
+        final pathPrefix = _currentPath.isEmpty ? 'public/formats/$dirName/' : 'public/formats/${_currentPath.join('/')}/$dirName/';
+        
+        final files = dir.listSync(recursive: true).whereType<File>();
+        for (var file in files) {
+          final relativePath = file.path.replaceFirst(dir.path + Platform.pathSeparator, '').replaceAll(Platform.pathSeparator, '/');
+          final awsPath = '$pathPrefix$relativePath';
+          allFiles.add({'file': file, 'awsPath': awsPath});
+        }
+      }
+
+      setState(() {
+        _isLoading = true;
+        _isUploading = true;
+        _uploadProgress = 0.0;
+        _uploadStatus = 'Uploading 0 of ${allFiles.length} files...';
+      });
+      
+      for (int i = 0; i < allFiles.length; i++) {
+        final file = allFiles[i]['file'] as File;
+        final awsPath = allFiles[i]['awsPath'] as String;
+        
+        setState(() {
+          _uploadStatus = 'Uploading file ${i + 1} of ${allFiles.length}...';
+          _uploadProgress = i / allFiles.length;
+        });
+
+        await Amplify.Storage.uploadFile(
+          localFile: AWSFile.fromPath(file.path),
+          path: StoragePath.fromString(awsPath),
+        ).result;
+        
+        try {
+           final bytes = await file.readAsBytes();
+           SupabaseBackupService().backupFileInBackground(awsPath, bytes);
+        } catch (_) {}
+      }
+      
+      setState(() {
+        _uploadProgress = 1.0;
+        _uploadStatus = 'Upload complete!';
+        _isUploading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Successfully uploaded ${directoryPaths.length} folder(s)'), backgroundColor: Colors.green));
+      }
+      await _fetchFormats();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Folder upload failed: $e'), backgroundColor: Colors.redAccent));
+        setState(() {
+          _isLoading = false;
+          _isUploading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _uploadFormat() async {
     try {
       final result = await FilePicker.pickFiles(type: FileType.any, allowMultiple: true, withData: true);
       if (result != null && result.files.isNotEmpty) {
-        setState(() => _isLoading = true);
+        setState(() {
+          _isLoading = true;
+          _isUploading = true;
+          _uploadProgress = 0.0;
+          _uploadStatus = 'Uploading 0 of ${result.files.length} files...';
+        });
+        
         final pathPrefix = _currentPath.isEmpty ? 'public/formats/' : 'public/formats/${_currentPath.join('/')}/';
         
-        for (var file in result.files) {
+        for (int i = 0; i < result.files.length; i++) {
+          final file = result.files[i];
           if (file.path == null && file.bytes == null) continue;
+          
+          setState(() {
+            _uploadStatus = 'Uploading file ${i + 1} of ${result.files.length}...';
+            _uploadProgress = i / result.files.length;
+          });
           
           final fileName = file.name;
           final path = '$pathPrefix$fileName';
@@ -165,6 +250,12 @@ class _FormatsScreenState extends State<FormatsScreen> {
           } catch (_) {}
         }
 
+        setState(() {
+          _uploadProgress = 1.0;
+          _uploadStatus = 'Upload complete!';
+          _isUploading = false;
+        });
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Formats uploaded successfully'), backgroundColor: Colors.green));
         }
@@ -173,7 +264,10 @@ class _FormatsScreenState extends State<FormatsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.redAccent));
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _isUploading = false;
+        });
       }
     }
   }
@@ -259,12 +353,23 @@ class _FormatsScreenState extends State<FormatsScreen> {
       try {
         final pathPrefix = _currentPath.isEmpty ? 'public/formats/$folderName/' : 'public/formats/${_currentPath.join('/')}/$folderName/';
         
+        // Fetch all objects under this folder
         final result = await Amplify.Storage.list(
           path: StoragePath.fromString(pathPrefix),
         ).result;
         
-        for (var item in result.items) {
-          await Amplify.Storage.remove(path: StoragePath.fromString(item.path)).result;
+        if (result.items.isNotEmpty) {
+          // Remove all objects
+          final pathsToRemove = result.items.map((e) => StoragePath.fromString(e.path)).toList();
+          await Amplify.Storage.removeMany(paths: pathsToRemove).result;
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Folder deleted successfully (${pathsToRemove.length} items)'), backgroundColor: Colors.green));
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Folder was already empty or could not be found.'), backgroundColor: Colors.orange));
+          }
         }
         
         await _fetchFormats();
@@ -411,6 +516,18 @@ class _FormatsScreenState extends State<FormatsScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: _uploadFolder,
+                      icon: const Icon(Icons.drive_folder_upload_rounded, size: 18),
+                      label: const Text('Upload Folder'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryColor,
+                        side: const BorderSide(color: AppTheme.primaryColor),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: _uploadFormat,
                       icon: const Icon(Icons.upload_file_rounded, size: 18),
@@ -444,7 +561,27 @@ class _FormatsScreenState extends State<FormatsScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const CircularProgressIndicator(),
+                            if (_isUploading) ...[
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: 240,
+                                child: LinearProgressIndicator(
+                                  value: _uploadProgress > 0 ? _uploadProgress : null,
+                                  backgroundColor: Colors.grey.shade200,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(_uploadStatus, style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                            ],
+                          ],
+                        ),
+                      )
                     : totalItems == 0
                         ? Center(
                             child: Column(

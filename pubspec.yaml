@@ -66,6 +66,7 @@ dependencies:
   desktop_webview_auth: ^0.0.16
   amplify_core: any
   collection: any
+  file_selector: ^1.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
