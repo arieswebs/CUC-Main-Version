@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_storage_s3/amplify_storage_s3.dart';
 import '../models/ModelProvider.dart' as amplify_models;
 import '../theme.dart';
 import '../models/client.dart';
@@ -79,6 +80,7 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
 
       final pFilesRes = await Amplify.Storage.list(
         path: StoragePath.fromString('public/${widget.client.id}/personal/'),
+        options: StorageListOptions(pluginOptions: S3ListPluginOptions.listAll()),
       ).result;
       
       final workPath = _currentWorkFolder == null 
@@ -87,10 +89,12 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
           
       final wFilesRes = await Amplify.Storage.list(
         path: StoragePath.fromString(workPath),
+        options: StorageListOptions(pluginOptions: S3ListPluginOptions.listAll()),
       ).result;
       
       final vFilesRes = await Amplify.Storage.list(
         path: StoragePath.fromString('public/${widget.client.id}/voice/'),
+        options: StorageListOptions(pluginOptions: S3ListPluginOptions.listAll()),
       ).result;
       
       if (!mounted) return;
@@ -107,32 +111,17 @@ class _ClientFilesDialogState extends State<ClientFilesDialog> {
             try {
               itemPath = Uri.decodeFull(item.path);
             } catch (_) {
-              itemPath = item.path; // Fallback to raw path if decoding fails
-            }
-            String relativePath = itemPath;
-            
-            if (itemPath.startsWith(workPathStr)) {
-              relativePath = itemPath.substring(workPathStr.length);
-            } else if (itemPath.startsWith(workPathStr.replaceFirst('public/', ''))) {
-              relativePath = itemPath.substring(workPathStr.replaceFirst('public/', '').length);
-            } else if (itemPath.startsWith('/$workPathStr')) {
-              relativePath = itemPath.substring(workPathStr.length + 1);
-            } else if (itemPath.contains('/work/')) {
-              relativePath = itemPath.split('/work/').last;
+              itemPath = item.path; 
             }
             
-            while (relativePath.startsWith('/')) {
-              relativePath = relativePath.substring(1);
-            }
+            if (!itemPath.startsWith(workPathStr)) continue;
             
-            if (relativePath.isNotEmpty) {
-              final parts = relativePath.split('/').where((s) => s.isNotEmpty).toList();
-              if (parts.isNotEmpty) {
-                final folderName = parts[0];
-                if (!folderName.contains('.emptyPlaceholder')) {
-                  folderNames.add(folderName);
-                }
-              }
+            final relativePath = itemPath.substring(workPathStr.length);
+            if (relativePath.isEmpty || relativePath == '.emptyPlaceholder') continue;
+            
+            final parts = relativePath.split('/');
+            if (parts.isNotEmpty && parts[0].isNotEmpty && !parts[0].contains('.emptyPlaceholder')) {
+               folderNames.add(parts[0]);
             }
           }
           _workFolders = folderNames.toList()..sort();

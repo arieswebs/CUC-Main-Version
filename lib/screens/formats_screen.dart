@@ -36,48 +36,42 @@ class _FormatsScreenState extends State<FormatsScreen> {
   Future<void> _fetchFormats() async {
     setState(() => _isLoading = true);
     try {
-      final result = await Amplify.Storage.list(
-        path: const StoragePath.fromString('public/formats/'),
-      ).result;
+      final pathPrefix = _currentPath.isEmpty ? 'public/formats/' : 'public/formats/${_currentPath.join('/')}/';
       
-      final items = result.items.toList();
-      items.sort((a, b) {
-        final aDate = a.lastModified ?? DateTime(2000);
-        final bDate = b.lastModified ?? DateTime(2000);
-        return bDate.compareTo(aDate);
-      });
+      final result = await Amplify.Storage.list(
+        path: StoragePath.fromString(pathPrefix),
+        options: const StorageListOptions(
+          pluginOptions: S3ListPluginOptions.listAll(),
+        ),
+      ).result;
       
       Set<String> folders = {};
       List<StorageItem> files = [];
 
-      for (var item in items) {
-        final relativePath = item.path.replaceFirst('public/formats/', '');
-        if (relativePath.isEmpty) continue;
+      for (var item in result.items) {
+        if (!item.path.startsWith(pathPrefix)) continue;
+        
+        final relativePath = item.path.substring(pathPrefix.length);
+        if (relativePath.isEmpty || relativePath == '.keep') continue;
         
         final segments = relativePath.split('/');
         
-        bool matchesPath = true;
-        for (int i = 0; i < _currentPath.length; i++) {
-          if (segments.length <= i || segments[i] != _currentPath[i]) {
-            matchesPath = false;
-            break;
+        if (segments.length == 1) {
+          if (segments[0].isNotEmpty && segments[0] != '.keep') {
+            files.add(item);
           }
-        }
-        
-        if (matchesPath && segments.length > _currentPath.length) {
-          final nextSegment = segments[_currentPath.length];
-          
-          if (_currentPath.length == segments.length - 1) {
-            if (nextSegment.isNotEmpty && nextSegment != '.keep') {
-              files.add(item);
-            }
-          } else {
-            if (nextSegment.isNotEmpty) {
-              folders.add(nextSegment);
-            }
+        } else {
+          if (segments[0].isNotEmpty) {
+            folders.add(segments[0]);
           }
         }
       }
+
+      files.sort((a, b) {
+        final aDate = a.lastModified ?? DateTime(2000);
+        final bDate = b.lastModified ?? DateTime(2000);
+        return bDate.compareTo(aDate);
+      });
 
       if (mounted) {
         setState(() {

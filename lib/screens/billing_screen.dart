@@ -1535,7 +1535,7 @@ class _InvoiceCreatorPageState extends State<InvoiceCreatorPage> {
     _pdfBuildCount++;
     final currentCount = _pdfBuildCount;
     
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(const Duration(milliseconds: 50));
     
     if (currentCount != _pdfBuildCount) {
       if (_cachedPdf != null) return _cachedPdf!;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:amplify_api/amplify_api.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
+import 'package:amplify_storage_s3/amplify_storage_s3.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:cuc_app/services/backup_aware_api.dart';
@@ -133,10 +134,12 @@ class _CreateWorkFileDialogState extends State<CreateWorkFileDialog> {
       // Fetch both personal and work files
       final pFilesRes = await Amplify.Storage.list(
         path: StoragePath.fromString('public/${client.id}/personal/'),
+        options: StorageListOptions(pluginOptions: S3ListPluginOptions.listAll()),
       ).result;
       
       final wFilesRes = await Amplify.Storage.list(
         path: StoragePath.fromString('public/${client.id}/work/'),
+        options: StorageListOptions(pluginOptions: S3ListPluginOptions.listAll()),
       ).result;
       
       if (!mounted) return;
