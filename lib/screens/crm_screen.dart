@@ -249,6 +249,7 @@ class _CrmScreenState extends State<CrmScreen>
       builder: (dialogCtx) {
         return StatefulBuilder(
           builder: (ctx, setModalState) {
+            final (alarmSource, alarmNotes) = _extractSourceAndNotes(deal);
             final nowInner = DateTime.now();
             final isPastDue = deal.postponedDate != null && deal.postponedDate!.isBefore(nowInner);
             final minsBefore = (deal.postponedDate != null && deal.postponedDate!.isAfter(nowInner))
@@ -427,7 +428,6 @@ class _CrmScreenState extends State<CrmScreen>
                               ],
                             ),
                           ],
-                          final (alarmSource, alarmNotes) = _extractSourceAndNotes(deal);
                           if (alarmSource.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Row(
@@ -4341,6 +4341,7 @@ class _CrmScreenState extends State<CrmScreen>
     final dateStr = deal.createdAt != null
         ? DateFormat('dd MMM yyyy').format(deal.createdAt!)
         : 'Recent';
+    final (cardSource, cardNotes) = _extractSourceAndNotes(deal);
 
     return InkWell(
       onTap: () => _openDeal(deal),
@@ -4504,8 +4505,6 @@ class _CrmScreenState extends State<CrmScreen>
                 ),
               ),
             ],
-
-            final (cardSource, cardNotes) = _extractSourceAndNotes(deal);
 
             // Lead Source Badge
             if (cardSource.isNotEmpty) ...[
@@ -4829,6 +4828,7 @@ class _CrmScreenState extends State<CrmScreen>
   Widget _buildDealCard(Deal deal, Color color) {
     final crmStage = getCrmStage(deal);
     final stageColor = _stageColor(crmStage);
+    final (listSource, listNotes) = _extractSourceAndNotes(deal);
 
     return InkWell(
       onTap: () => _openDeal(deal),
@@ -4957,7 +4957,6 @@ class _CrmScreenState extends State<CrmScreen>
                         ),
                     ],
                   ),
-                  final (listSource, listNotes) = _extractSourceAndNotes(deal);
                   if (listSource.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Row(
