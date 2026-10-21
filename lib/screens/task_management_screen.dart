@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import 'task_detail_screen.dart';
 import 'dart:async';
 import 'package:cuc_app/services/backup_aware_api.dart';
+import '../services/meta_service.dart';
 import '../services/supabase_backup_service.dart';
 
 class TaskManagementScreen extends StatefulWidget {
@@ -577,6 +578,22 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
                                       message: '"$finalTitle" has been created and assigned.',
                                       type: 'assignment',
                                     );
+
+                                    // Lively WhatsApp alert to assigned staff
+                                     final effectiveAssignee = newTask.assigned_to ?? assignedTo;
+                                     if (effectiveAssignee != null) {
+                                      final prefs = await SharedPreferences.getInstance();
+                                      final currentUserName = prefs.getString('user_name') ?? 'Management';
+                                      unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+                                         staffUserId: effectiveAssignee,
+                                        assignmentTitle: finalTitle,
+                                        workOrTaskType: 'Task / Field Visit',
+                                        clientName: clientCtrl.text.isNotEmpty ? clientCtrl.text : null,
+                                        dueDate: dueDate != null ? DateFormat('dd-MMM-yyyy hh:mm a').format(dueDate!) : null,
+                                        assignedByName: currentUserName,
+                                        details: descCtrl.text.isNotEmpty ? descCtrl.text : 'New task assigned to you in CUC System.',
+                                      ));
+                                    }
                                   }
                                   await LoggingService().logAction(action: 'TASK_CREATED', targetType: 'Task', targetId: finalTitle, details: 'Assigned to ID: $assignedTo');
                                 }
@@ -586,16 +603,34 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
                                 final res = await Amplify.API.query(request: req).response;
                                 if (res.data?.items.isNotEmpty == true) {
                                   final existingTask = res.data!.items.first!;
+                                  final oldAssignee = existingTask.assigned_to;
+                                  final newAssignee = int.tryParse(assignedTo.toString());
                                   final updatedTask = existingTask.copyWith(
                                     title: finalTitle,
                                     description: descCtrl.text,
-                                    assigned_to: int.tryParse(assignedTo.toString()),
+                                    assigned_to: newAssignee,
                                     due_date: dueDate?.toIso8601String(),
                                     location: locCtrl.text.isEmpty ? null : locCtrl.text,
                                     client_name: clientCtrl.text.isEmpty ? null : clientCtrl.text,
                                     phone_number: phoneCtrl.text.isEmpty ? null : phoneCtrl.text,
                                   );
                                   await BackupAwareApi().update(updatedTask);
+
+                                  // If assignee changed, alert the newly assigned staff
+                                   final effectiveNewAssignee = newAssignee ?? assignedTo;
+                                   if (effectiveNewAssignee != null && (newAssignee != oldAssignee || effectiveNewAssignee.toString() != oldAssignee?.toString())) {
+                                    final prefs = await SharedPreferences.getInstance();
+                                    final currentUserName = prefs.getString('user_name') ?? 'Management';
+                                    unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+                                       staffUserId: effectiveNewAssignee,
+                                      assignmentTitle: finalTitle,
+                                      workOrTaskType: 'Task Reassigned',
+                                      clientName: clientCtrl.text.isNotEmpty ? clientCtrl.text : null,
+                                      dueDate: dueDate != null ? DateFormat('dd-MMM-yyyy hh:mm a').format(dueDate!) : null,
+                                      assignedByName: currentUserName,
+                                      details: descCtrl.text.isNotEmpty ? descCtrl.text : 'Task reassigned to you in CUC System.',
+                                    ));
+                                  }
                                 }
                                 
                                 await LoggingService().logAction(action: 'TASK_UPDATED', targetType: 'Task', targetId: task.id.toString(), details: 'Updated task: $finalTitle');

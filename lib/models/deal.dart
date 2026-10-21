@@ -196,12 +196,12 @@ class Deal {
 
   Map<String, dynamic> toMap() {
     final String adjBlock;
-    if (isAdjourned) {
+    if (isAdjourned || postponedDate != null) {
       final dateStr = postponedDate != null
           ? "\nPostponedDate: ${postponedDate!.toIso8601String()}"
           : "";
       adjBlock =
-          "\n\n[ADJOURNED]\nIsAdjourned: true\nReason: ${adjournedReason ?? ''}$dateStr";
+          "\n\n[ADJOURNED]\nIsAdjourned: ${isAdjourned ? 'true' : 'false'}\nReason: ${adjournedReason ?? ''}$dateStr";
     } else {
       adjBlock = "";
     }
@@ -229,6 +229,8 @@ class Deal {
       'pipeline': pipeline,
       'priority': priority,
       'description': finalDesc,
+      'created_at': createdAt?.toIso8601String(),
+      'updated_at': updatedAt?.toIso8601String(),
       'closed_at': closedAt?.toIso8601String(),
       'is_won': isWon,
       'reg_fee_required': regFeeRequired,
@@ -261,23 +263,31 @@ class Deal {
     DateTime? postDate;
     String cleanDesc = rawDesc;
 
-    final regExp = RegExp(
-      r'\[ADJOURNED\]\s*\n\s*IsAdjourned:\s*(.*?)\s*\n\s*Reason:\s*(.*?)(?:\s*\n\s*PostponedDate:\s*([^\n\r]+))?$',
-      multiLine: true,
-      caseSensitive: false,
-    );
-
-    final match = regExp.firstMatch(rawDesc);
-    if (match != null) {
-      isAdj = match.group(1)?.trim().toLowerCase() == 'true';
-      adjReason = match.group(2)?.trim();
-      final dateStr = match.groupCount >= 3 ? match.group(3)?.trim() : null;
-      postDate = (dateStr != null && dateStr.isNotEmpty)
-          ? DateTime.tryParse(dateStr)
-          : null;
-
-      final index = rawDesc.indexOf('[ADJOURNED]');
+    final index = rawDesc.indexOf('[ADJOURNED]');
+    if (index != -1) {
       cleanDesc = rawDesc.substring(0, index).trim();
+      final adjPart = rawDesc.substring(index);
+
+      final isAdjMatch = RegExp(r'IsAdjourned:[ \t]*(true|false)', caseSensitive: false).firstMatch(adjPart);
+      if (isAdjMatch != null) {
+        isAdj = isAdjMatch.group(1)?.toLowerCase() == 'true';
+      }
+
+      final reasonMatch = RegExp(r'Reason:[ \t]*([^\r\n]*)', caseSensitive: false).firstMatch(adjPart);
+      if (reasonMatch != null) {
+        final rStr = reasonMatch.group(1)?.trim();
+        if (rStr != null && rStr.isNotEmpty) {
+          adjReason = rStr;
+        }
+      }
+
+      final postMatch = RegExp(r'PostponedDate:[ \t]*([^\r\n]+)', caseSensitive: false).firstMatch(adjPart);
+      if (postMatch != null) {
+        final dateStr = postMatch.group(1)?.trim();
+        if (dateStr != null && dateStr.isNotEmpty) {
+          postDate = DateTime.tryParse(dateStr);
+        }
+      }
     }
 
     return Deal(

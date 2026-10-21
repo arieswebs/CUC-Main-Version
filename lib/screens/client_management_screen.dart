@@ -194,7 +194,14 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
       final res = await Amplify.API.query(request: req).response;
       var deals = res.data?.items.whereType<amplify_models.Deals>().toList() ?? [];
 
-      final cNameLower = (c.name ?? '').toLowerCase().trim();
+      // Filter out unpassed CRM leads so only passed ones come in client works
+      deals = deals.where((d) {
+        final isCrm = (d.pipeline ?? '').toLowerCase() == 'crm' || (d.pipeline ?? '').toLowerCase() == 'lead';
+        if (isCrm && d.is_won != true) return false;
+        return true;
+      }).toList();
+
+      final cNameLower = c.name.toLowerCase().trim();
       final cIdStr = c.id?.toString();
       
       deals = deals.where((d) {

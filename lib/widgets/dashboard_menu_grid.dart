@@ -49,6 +49,7 @@ class _DashboardMenuGridState extends State<DashboardMenuGrid> {
     ]),
     MenuCategory('Clients & Contacts', [
       MenuItem(3, Icons.people_alt_rounded, 'Client Data'),
+      MenuItem(31, Icons.hub_rounded, 'CRM'),
       MenuItem(25, Icons.contacts_rounded, 'Contact Book'),
       MenuItem(26, Icons.help_center_rounded, 'Client Help & Queries'),
       MenuItem(22, Icons.handshake_rounded, 'File Acknowledgement'),

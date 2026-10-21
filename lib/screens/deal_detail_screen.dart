@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/deal.dart';
 import '../models/billing.dart';
@@ -23,10 +24,12 @@ import 'google_docs_webview_screen.dart';
 import 'package:cuc_app/services/backup_aware_api.dart';
 import 'file_acknowledgement_screen.dart';
 import 'client_files_screen.dart';
+import '../services/meta_service.dart';
 
 class DealDetailScreen extends StatefulWidget {
   final Deal? deal;
-  const DealDetailScreen({super.key, this.deal});
+  final bool isCrm;
+  const DealDetailScreen({super.key, this.deal, this.isCrm = false});
 
   @override
   State<DealDetailScreen> createState() => _DealDetailScreenState();
@@ -61,6 +64,8 @@ class _DealDetailScreenState extends State<DealDetailScreen>
   late TextEditingController _paymentReceivedController;
   late TextEditingController _partPaymentAmountController;
 
+  late String _pipeline;
+  late bool _isWon;
   late String _currentStage;
   late String _priority;
   late String _contactStatus;
@@ -170,6 +175,8 @@ class _DealDetailScreenState extends State<DealDetailScreen>
       setState(() {});
     });
 
+    _pipeline = widget.deal?.pipeline ?? (widget.isCrm ? 'CRM' : 'General');
+    _isWon = widget.deal?.isWon ?? false;
     _currentStage = widget.deal?.stage ?? 'Registration';
     _priority = d?.priority ?? 'Normal';
     _contactStatus = d?.contactStatus ?? 'not selected';
@@ -258,8 +265,10 @@ class _DealDetailScreenState extends State<DealDetailScreen>
         nocObtained: _nocObtained,
         isAdjourned: _isAdjourned,
         adjournedReason: _isAdjourned ? _adjournedReasonController.text : null,
-        postponedDate: _isAdjourned ? _postponedDate : null,
+        postponedDate: _isAdjourned || _postponedDate != null ? _postponedDate : null,
         closedAt: _selectedDeadline,
+        pipeline: _pipeline,
+        isWon: _isWon,
       );
 
       await _dealService.updateDeal(deal);
@@ -369,8 +378,10 @@ final dLink = "";
         nocObtained: _nocObtained,
         isAdjourned: _isAdjourned,
         adjournedReason: _isAdjourned ? _adjournedReasonController.text : null,
-        postponedDate: _isAdjourned ? _postponedDate : null,
+        postponedDate: _isAdjourned || _postponedDate != null ? _postponedDate : null,
         closedAt: _selectedDeadline,
+        pipeline: _pipeline,
+        isWon: _isWon,
       );
 
       await _dealService.updateDeal(deal);
@@ -473,8 +484,10 @@ final dLink = "";
         nocObtained: _nocObtained,
         isAdjourned: _isAdjourned,
         adjournedReason: _isAdjourned ? _adjournedReasonController.text : null,
-        postponedDate: _isAdjourned ? _postponedDate : null,
+        postponedDate: _isAdjourned || _postponedDate != null ? _postponedDate : null,
         closedAt: _selectedDeadline,
+        pipeline: _pipeline,
+        isWon: _isWon,
       );
 
       await _dealService.updateDeal(deal);
@@ -994,6 +1007,196 @@ final dLink = "";
     if (mounted) setState(() => _allUsers = users);
   }
 
+  Future<void> _showPassLeadDialog() async {
+    final clientNameController = TextEditingController(
+      text: _clientController.text.isNotEmpty ? _clientController.text : _nameController.text,
+    );
+    final contactController = TextEditingController(text: _contactController.text);
+    final workNameController = TextEditingController(text: _nameController.text);
+    final workTypeController = TextEditingController(
+      text: _workTypeController.text.isNotEmpty ? _workTypeController.text : _selectedCategory,
+    );
+    final amountController = TextEditingController(
+      text: _invoiceAmountController.text != '0' && _invoiceAmountController.text.isNotEmpty
+          ? _invoiceAmountController.text
+          : _estAmountController.text,
+    );
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
+              child: const Icon(Icons.verified, color: Colors.green, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Text('Pass Lead to Work & Client', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 20, color: Colors.blue.shade700),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Passing this lead will automatically register the client in Client Management and activate this project in Work Management.',
+                        style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: clientNameController,
+                decoration: const InputDecoration(labelText: 'Client Name *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: contactController,
+                decoration: const InputDecoration(labelText: 'Contact Phone / Email', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: workNameController,
+                decoration: const InputDecoration(labelText: 'Work Name *', border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: workTypeController,
+                      decoration: const InputDecoration(labelText: 'Work Type', border: OutlineInputBorder()),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: amountController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Amount (₹)', border: OutlineInputBorder()),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF16A34A),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.check_circle, size: 18),
+            label: const Text('Confirm & Pass to Work', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isLoading = true);
+      try {
+        final client = await ClientService().getOrCreateClientForLead(
+          clientName: clientNameController.text.trim().isNotEmpty
+              ? clientNameController.text.trim()
+              : (_nameController.text.isNotEmpty ? _nameController.text.trim() : 'Unknown Client'),
+          phone: contactController.text.trim(),
+          typeOfWork: workTypeController.text.trim(),
+        );
+
+        _isWon = true;
+        _currentStage = 'Work Started';
+        _pipeline = 'CRM';
+        _clientController.text = client.name ?? clientNameController.text.trim();
+        _nameController.text = workNameController.text.trim();
+
+        final currentDeal = widget.deal ?? Deal(
+          name: _nameController.text,
+          clientName: _clientController.text,
+          stage: _currentStage,
+          pipeline: _pipeline,
+          isWon: true,
+        );
+
+        final updatedDeal = currentDeal.copyWith(
+          name: _nameController.text,
+          clientId: int.tryParse(client.id) ?? currentDeal.clientId,
+          clientName: client.name ?? clientNameController.text.trim(),
+          contactInfo: contactController.text.trim(),
+          workType: workTypeController.text.trim(),
+          amount: double.tryParse(amountController.text) ?? currentDeal.amount,
+          pipeline: 'CRM',
+          stage: 'Work Started',
+          isWon: true,
+          closedAt: DateTime.now(),
+        );
+
+        if (widget.deal == null) {
+          final newId = await _dealService.createDeal(updatedDeal);
+          await _dealService.passLeadToWork(
+            lead: updatedDeal.copyWith(id: newId),
+            clientId: client.id,
+            clientName: client.name ?? clientNameController.text.trim(),
+            currentUserId: _currentUserId,
+          );
+        } else {
+          await _dealService.passLeadToWork(
+            lead: updatedDeal,
+            clientId: client.id,
+            clientName: client.name ?? clientNameController.text.trim(),
+            currentUserId: _currentUserId,
+          );
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Lead "${_nameController.text}" successfully passed to Work Management & registered in Client Management!'),
+              backgroundColor: const Color(0xFF16A34A),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error passing lead: $e'), backgroundColor: Colors.red),
+          );
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
+
   Future<void> _saveDeal() async {
     setState(() => _isLoading = true);
     try {
@@ -1039,8 +1242,10 @@ final dLink = "";
         nocObtained: _nocObtained,
         isAdjourned: _isAdjourned,
         adjournedReason: _isAdjourned ? _adjournedReasonController.text : null,
-        postponedDate: _isAdjourned ? _postponedDate : null,
+        postponedDate: _isAdjourned || _postponedDate != null ? _postponedDate : null,
         closedAt: _selectedDeadline,
+        pipeline: _pipeline,
+        isWon: _isWon,
       );
 
       if (widget.deal == null) {
@@ -2258,6 +2463,7 @@ final dLink = "";
                                 _buildPipelineTracker(),
                                 const SizedBox(height: 24),
                                 _buildSectionCard('FILE CREATION', [
+                                  _buildPipelineSelector(),
                                   _buildField(
                                     'Deal Name',
                                     _nameController,
@@ -2971,6 +3177,7 @@ final dLink = "";
                               _buildPipelineTracker(),
                               const SizedBox(height: 32),
                               _buildSectionCard('FILE CREATION', [
+                                    _buildPipelineSelector(),
                                     _buildField(
                                       'Deal Name',
                                       _nameController,
@@ -3730,7 +3937,9 @@ final dLink = "";
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  widget.deal == null ? 'Create New Work' : widget.deal!.name,
+                  widget.deal == null
+                      ? (_pipeline.toLowerCase() == 'crm' ? 'New CRM Lead' : 'Create New Work')
+                      : widget.deal!.name,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -3739,15 +3948,48 @@ final dLink = "";
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
-                const Text(
-                  'Management workspace',
-                  style: TextStyle(color: Colors.grey, fontSize: 11),
+                Text(
+                  _pipeline.toLowerCase() == 'crm' ? 'CRM Lead Pipeline' : 'Work Management Pipeline',
+                  style: const TextStyle(color: Colors.grey, fontSize: 11),
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
+          if (_pipeline.toLowerCase() == 'crm' && !_isWon) ...[
+            ElevatedButton.icon(
+              onPressed: _isLoading ? null : _showPassLeadDialog,
+              icon: const Icon(Icons.check_circle_rounded, size: 16, color: Colors.white),
+              label: const Text('Pass to Work & Client', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF16A34A),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ] else if (_pipeline.toLowerCase() == 'crm' && _isWon) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDCFCE7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF86EFAC)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.verified, size: 14, color: Color(0xFF16A34A)),
+                  SizedBox(width: 4),
+                  Text('Passed to Work', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF166534))),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           ElevatedButton(
             onPressed: _isLoading ? null : _saveDeal,
             style: ElevatedButton.styleFrom(
@@ -3941,6 +4183,136 @@ final dLink = "";
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPipelineSelector() {
+    final bool isCrm = _pipeline.toLowerCase() == 'crm';
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isCrm ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isCrm ? const Color(0xFF86EFAC) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isCrm ? Icons.hub_rounded : Icons.work_outline_rounded,
+                size: 18,
+                color: isCrm ? const Color(0xFF16A34A) : const Color(0xFF475569),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Pipeline Module',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isCrm ? const Color(0xFF166534) : const Color(0xFF1E293B),
+                ),
+              ),
+              const Spacer(),
+              if (isCrm && _isWon)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified, size: 12, color: Color(0xFF16A34A)),
+                      SizedBox(width: 4),
+                      Text(
+                        'Passed to Work & Client',
+                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFF166534)),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            padding: const EdgeInsets.all(3),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _pipeline = 'CRM');
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isCrm ? const Color(0xFF16A34A) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'CRM Lead (Inquiry)',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: isCrm ? FontWeight.bold : FontWeight.w500,
+                          color: isCrm ? Colors.white : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _pipeline = 'General');
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: !isCrm ? const Color(0xFF2563EB) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Direct Work Project',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: !isCrm ? FontWeight.bold : FontWeight.w500,
+                          color: !isCrm ? Colors.white : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isCrm
+                ? 'CRM leads stay separate from Work & Client Management. Once qualified, tap "Pass to Work & Client" to convert.'
+                : 'Direct work projects are immediately active in the Work Management pipeline.',
+            style: TextStyle(
+              fontSize: 11.5,
+              color: isCrm ? const Color(0xFF15803D) : Colors.grey.shade600,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -4540,6 +4912,19 @@ final dLink = "";
             createdBy: 1, // Placeholder
           ),
         );
+
+        // Lively WhatsApp alert to newly assigned responsible staff
+        final prefs = await SharedPreferences.getInstance();
+        final currentUserName = prefs.getString('user_name') ?? 'Management';
+        unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+          staffUserId: _responsibleId,
+          assignmentTitle: widget.deal?.name ?? 'Work Assignment',
+          workOrTaskType: 'Work Responsibility Transferred',
+          clientName: widget.deal?.clientName,
+          assignedByName: currentUserName,
+          details: 'You are now the responsible staff member for "${widget.deal?.name ?? 'this work'}".',
+        ));
+
         _loadDetails();
       }
     }
@@ -5950,6 +6335,22 @@ final dLink = "";
                                 message: 'A task for deal "${widget.deal!.name}" has been assigned to you.',
                                 type: 'assignment',
                               );
+
+                              // Lively WhatsApp alert to assigned staff
+                              final effectiveDealAssignee = newTask.assigned_to ?? assignedTo ?? taskData['assigned_to'];
+                              if (effectiveDealAssignee != null) {
+                                final prefs = await SharedPreferences.getInstance();
+                                final currentUserName = prefs.getString('user_name') ?? 'Management';
+                                unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+                                  staffUserId: effectiveDealAssignee,
+                                  assignmentTitle: taskData['title'] as String,
+                                  workOrTaskType: 'Work Task (${widget.deal?.name ?? 'Work'})',
+                                  clientName: widget.deal?.clientName,
+                                  dueDate: taskData['due_date']?.toString(),
+                                  assignedByName: currentUserName,
+                                  details: taskData['description'] as String? ?? 'Task assigned in work.',
+                                ));
+                              }
 
                               await LoggingService().logAction(
                                 action: 'TASK_SYNC_CREATED',

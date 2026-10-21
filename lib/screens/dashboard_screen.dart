@@ -58,6 +58,7 @@ import 'package:cuc_app/services/birthday_service.dart';
 import '../widgets/startup_task_popup.dart';
 import '../services/auto_backup_service.dart';
 import 'formats_screen.dart';
+import 'crm_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -534,10 +535,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         body: SafeArea(
           child: Row(
           children: [
-            if (isWide) _buildSidebar(),
+            if (isWide && _selectedIndex != 31) _buildSidebar(),
             Expanded(
               child: Container(
-                padding: EdgeInsets.all(isWide ? 32 : 16),
+                padding: _selectedIndex == 31 ? EdgeInsets.zero : EdgeInsets.all(isWide ? 32 : 16),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: _buildMainBody(isWide),
@@ -623,6 +624,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 24: return const PropertyManagementScreen();
       case 25: return const ContactBookScreen();
       case 29: return const FormatsScreen();
+      case 31: return CrmScreen(onBack: () => setState(() => _selectedIndex = 0));
       default: return const Center(child: Text('Page not found'));
     }
   }

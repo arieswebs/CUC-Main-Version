@@ -7,7 +7,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import '../models/ModelProvider.dart';
 import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cuc_app/services/backup_aware_api.dart';
+import 'encryption_service.dart';
+import 'meta_service.dart';
 
 class AppNotification {
   final dynamic id;
@@ -252,6 +255,7 @@ class NotificationService {
     String type = 'info',
     dynamic dealId,
     dynamic taskId,
+    bool showLocal = false,
   }) async {
     try {
       final notif = Notifications(
@@ -266,9 +270,13 @@ class NotificationService {
       );
       await BackupAwareApi().create(notif);
 
-      // Show local/desktop notification on sender device (skip for chat — receiver gets it via realtime)
-      if (type != 'chat') {
-        await showLocalNotification(title: title, message: message);
+      // Only show local/desktop notification if explicitly requested and directed to the current user
+      if (showLocal) {
+        final prefs = await SharedPreferences.getInstance();
+        final currentUserId = prefs.getInt('current_user_id')?.toString() ?? prefs.getString('current_user_id_str');
+        if (currentUserId != null && userId.toString() == currentUserId.toString()) {
+          await showLocalNotification(title: title, message: message);
+        }
       }
     } catch (e) {
       debugPrint('Error sending notification: $e');
@@ -314,7 +322,7 @@ class NotificationService {
     try {
       final req = ModelQueries.list(Users.classType, where: Users.ROLE.eq('admin'), limit: 10000);
       final response = await Amplify.API.query(request: req).response;
-      final items = (response.data?.items ?? []).whereType<Users>() ?? [];
+      final items = (response.data?.items ?? []).whereType<Users>().toList();
       
       for (var row in items) {
         final adminId = row.id;
@@ -332,6 +340,57 @@ class NotificationService {
     }
   }
 
+  /// Sends both an in-app system notification and an encrypted direct message to all Admins
+  /// when a scheduled follow-up is not attended to by staff.
+  Future<void> notifyAdminsMissedFollowUp({
+    required dynamic dealId,
+    required String leadName,
+    required String? contactInfo,
+    required DateTime scheduledTime,
+    String? contactStatus,
+    String? company,
+  }) async {
+    try {
+      final timeFormatted = DateFormat('dd MMM yyyy, hh:mm a').format(scheduledTime);
+      final title = '🚨 Missed CRM Follow-up: $leadName';
+      final message = 'Follow-up for lead "$leadName" (${contactInfo?.isNotEmpty == true ? contactInfo : "No phone"}) scheduled for $timeFormatted was NOT attended to.';
+
+      // 1. High-Priority In-App & Push Notification to all Admins
+      await notifyAdmins(
+        title: title,
+        message: message,
+        type: 'missed_followup',
+        dealId: dealId,
+      );
+
+      // 2. Direct message into Admin Chat Inbox
+      final req = ModelQueries.list(Users.classType, where: Users.ROLE.eq('admin'), limit: 100);
+      final response = await Amplify.API.query(request: req).response;
+      final admins = (response.data?.items ?? []).whereType<Users>().toList();
+
+      final prefs = await SharedPreferences.getInstance();
+      final myId = prefs.getInt('current_user_id') ?? 1;
+
+      for (var admin in admins) {
+        final adminIdInt = int.tryParse(admin.id.toString());
+        if (adminIdInt != null) {
+          final content = '[CRM Escalation] ⏰ Follow-up Overdue!\nLead: $leadName\nPhone: ${contactInfo ?? "N/A"}\nPlace: ${company ?? "N/A"}\nStatus: ${contactStatus ?? "Pending"}\nScheduled Time: $timeFormatted\nStaff did not follow up on this lead.';
+          final encryptedContent = EncryptionService().encryptText(content);
+          final newMsg = Messages(
+            sender_id: myId,
+            receiver_id: adminIdInt,
+            content: encryptedContent,
+            is_read: false,
+            created_at: DateTime.now().toIso8601String(),
+          );
+          await BackupAwareApi().create(newMsg);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error notifying admins about missed follow-up: $e');
+    }
+  }
+
   /// Notifies only relevant stakeholders (Managers and Responsible Staff).
   Future<void> notifyStakeholders({
     dynamic dealId,
@@ -346,7 +405,7 @@ class NotificationService {
       // 1. Always include Managers
       final req = ModelQueries.list(Users.classType, where: Users.ROLE.eq('manager'), limit: 10000);
       final response = await Amplify.API.query(request: req).response;
-      final managers = (response.data?.items ?? []).whereType<Users>() ?? [];
+      final managers = (response.data?.items ?? []).whereType<Users>().toList();
       for (var row in managers) {
         recipients.add(row.id);
       }
@@ -385,20 +444,88 @@ class NotificationService {
           taskId: taskId,
         );
       }
+
+      // 5. Lively automated WhatsApp alert to assigned staff member's company phone
+      if (type == 'assignment') {
+        if (taskId != null) {
+          try {
+            final tReq = ModelQueries.list(Tasks.classType, where: Tasks.ID.eq(taskId.toString()), limit: 1);
+            final tRes = await Amplify.API.query(request: tReq).response;
+            if (tRes.data?.items.isNotEmpty == true && tRes.data!.items.first != null) {
+              final taskRes = tRes.data!.items.first!;
+              if (taskRes.assigned_to != null) {
+                unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+                  staffUserId: taskRes.assigned_to,
+                  assignmentTitle: taskRes.title ?? title,
+                  workOrTaskType: 'Task Assignment',
+                  clientName: taskRes.client_name,
+                  dueDate: taskRes.due_date,
+                  details: taskRes.description ?? message,
+                ));
+              }
+            }
+          } catch (e) {
+            debugPrint('Error triggering task WhatsApp alert: $e');
+          }
+        } else if (dealId != null) {
+          try {
+            final dReq = ModelQueries.list(Deals.classType, where: Deals.ID.eq(dealId.toString()), limit: 1);
+            final dRes = await Amplify.API.query(request: dReq).response;
+            if (dRes.data?.items.isNotEmpty == true && dRes.data!.items.first != null) {
+              final dealRes = dRes.data!.items.first!;
+              if (dealRes.responsible_id != null) {
+                unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+                  staffUserId: dealRes.responsible_id,
+                  assignmentTitle: dealRes.name ?? title,
+                  workOrTaskType: 'Work Assignment',
+                  clientName: dealRes.client_name,
+                  priority: dealRes.priority,
+                  details: message,
+                ));
+              }
+            }
+          } catch (e) {
+            debugPrint('Error triggering deal WhatsApp alert: $e');
+          }
+        }
+      }
     } catch (e) {
       debugPrint('Error notifying stakeholders: $e');
     }
   }
 
+  static const String _lastReminderCronKey = 'smart_escalation_reminder_last_run';
+  static bool _isReminderCronRunning = false;
+
   /// Checks and sends reminders with dynamic frequency based on urgency.
   Future<void> checkAndSendFrequentReminders() async {
+    if (_isReminderCronRunning) return;
+    _isReminderCronRunning = true;
+
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastRunMs = prefs.getInt(_lastReminderCronKey);
+      if (lastRunMs != null) {
+        final elapsed = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(lastRunMs));
+        if (elapsed.inHours < 6) {
+          debugPrint('Smart Escalation Reminder Cron skipped (ran ${elapsed.inMinutes}m ago)');
+          _isReminderCronRunning = false;
+          return;
+        }
+      }
+      await prefs.setInt(_lastReminderCronKey, DateTime.now().millisecondsSinceEpoch);
+
       debugPrint('Running Smart Escalation Reminder Cron...');
+
+      // Fetch recent notifications once to avoid N+1 queries
+      final nReq = ModelQueries.list(Notifications.classType, limit: 1000);
+      final nRes = await Amplify.API.query(request: nReq).response;
+      final allNotifs = (nRes.data?.items ?? []).whereType<Notifications>().toList();
 
       // 1. Remind Deals
       final reqDeals = ModelQueries.list(Deals.classType, where: Deals.STAGE.ne('Completed'), limit: 10000);
       final resDeals = await Amplify.API.query(request: reqDeals).response;
-      final deals = (resDeals.data?.items ?? []).whereType<Deals>() ?? [];
+      final deals = (resDeals.data?.items ?? []).whereType<Deals>().toList();
 
       for (final dealMap in deals) {
         if (dealMap.responsible_id == null) continue;
@@ -408,10 +535,8 @@ class NotificationService {
         final name = dealMap.name ?? '';
         final stage = dealMap.stage ?? '';
 
-        // Check frequency for Deal
-        final nReq = ModelQueries.list(Notifications.classType, where: Notifications.TYPE.eq('reminder'), limit: 10000);
-        final nRes = await Amplify.API.query(request: nReq).response;
-        final notifs = nRes.data?.items.where((e) => e != null && e.deal_id?.toString() == dealId.toString()).cast<Notifications>().toList() ?? [];
+        // Check frequency for Deal from pre-fetched notifications
+        final notifs = allNotifs.where((e) => e.deal_id?.toString() == dealId.toString() && e.type == 'reminder').toList();
         notifs.sort((a, b) => (b.created_at ?? '').compareTo(a.created_at ?? ''));
         
         bool shouldNotify = true;
@@ -431,6 +556,7 @@ class NotificationService {
             message: 'Deal "$name" is still in stage "$stage".',
             type: 'reminder',
             dealId: dealId,
+            showLocal: false,
           );
         }
       }
@@ -438,7 +564,7 @@ class NotificationService {
       // 2. Remind Tasks
       final reqTasks = ModelQueries.list(Tasks.classType, where: Tasks.STATUS.ne('Completed'), limit: 10000);
       final resTasks = await Amplify.API.query(request: reqTasks).response;
-      final tasks = (resTasks.data?.items ?? []).whereType<Tasks>() ?? [];
+      final tasks = (resTasks.data?.items ?? []).whereType<Tasks>().toList();
 
       for (final taskMap in tasks) {
         if (taskMap.assigned_to == null) continue;
@@ -463,10 +589,8 @@ class NotificationService {
           }
         }
 
-        // Check last notification for this task
-        final nReq = ModelQueries.list(Notifications.classType, limit: 10000);
-        final nRes = await Amplify.API.query(request: nReq).response;
-        final notifs = nRes.data?.items.where((e) => e != null && e.task_id?.toString() == taskId.toString() && (e.type == 'reminder' || e.type == 'alert')).cast<Notifications>().toList() ?? [];
+        // Check last notification for this task from pre-fetched notifications
+        final notifs = allNotifs.where((e) => e.task_id?.toString() == taskId.toString() && (e.type == 'reminder' || e.type == 'alert')).toList();
         notifs.sort((a, b) => (b.created_at ?? '').compareTo(a.created_at ?? ''));
         
         bool shouldNotify = true;
@@ -486,6 +610,7 @@ class NotificationService {
             message: isOverdue ? 'Task "$title" is OVERDUE!' : 'Task "$title" is still "$status". Due: ${DateFormat('hh:mm a').format(dueDate?.toLocal() ?? DateTime.now())}',
             type: isOverdue ? 'alert' : 'reminder',
             taskId: taskId,
+            showLocal: false,
           );
         }
       }
@@ -494,6 +619,8 @@ class NotificationService {
 
     } catch (e) {
       debugPrint('Error running daily reminders: $e');
+    } finally {
+      _isReminderCronRunning = false;
     }
   }
 }
