@@ -7,6 +7,7 @@ import '../models/ModelProvider.dart';
 import '../models/deal.dart' as old;
 import '../models/deal_activity.dart' as oldActivity;
 import 'notification_service.dart';
+import 'meta_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cuc_app/services/backup_aware_api.dart';
 
@@ -119,7 +120,7 @@ class DealService {
     }
   }
 
-  Future<dynamic> createDeal(old.Deal deal) async {
+  Future<dynamic> createDeal(old.Deal deal, {bool sendNotification = true}) async {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getInt('current_user_id');
     final userName = prefs.getString('user_name');
@@ -154,11 +155,27 @@ class DealService {
           createdBy: userId ?? 1,
         ));
 
-        await NotificationService().notifyStakeholders(
-          title: 'New Work Created',
-          message: '${userName ?? 'A staff member'} created a new work: ${deal.name}',
-          dealId: dealId,
-        );
+        if (sendNotification) {
+          await NotificationService().notifyStakeholders(
+            title: 'New Work Created',
+            message: '${userName ?? 'A staff member'} created a new work: ${deal.name}',
+            dealId: dealId,
+          );
+        }
+
+        // Send lively WhatsApp notification to assigned staff member
+        final assignedStaffId = values['responsible_id'];
+        if (assignedStaffId != null) {
+          unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+            staffUserId: assignedStaffId,
+            assignmentTitle: deal.name,
+            workOrTaskType: 'New Work Assignment',
+            clientName: deal.clientName,
+            priority: deal.priority,
+            assignedByName: userName ?? 'Management',
+            details: deal.description ?? 'New work assigned to you in CUC System.',
+          ));
+        }
       }
 
       return dealId;
@@ -170,51 +187,70 @@ class DealService {
 
   Future<void> updateDeal(old.Deal deal) async {
     final Map<String, dynamic> values = deal.toMap();
-    final id = values.remove('id');
+    final id = values['id'] ?? deal.id;
+    values.remove('id');
     
     try {
-      final req = ModelQueries.get(Deals.classType, DealsModelIdentifier(id: id.toString()));
-      final res = await Amplify.API.query(request: req).response;
-      if (res.data == null) return;
-      
-      final c = res.data!;
-      final updated = c.copyWith(
-        name: values['name'],
-        client_id: values['client_id'],
-        client_name: values['client_name'],
-        contact_info: values['contact_info'],
-        company: values['company'],
-        work_type: values['work_type'],
-        stage: values['stage'],
-        responsible_id: values['responsible_id'],
-        responsible_name: values['responsible_name'],
-        amount: values['amount'] != null ? double.tryParse(values['amount'].toString()) : null,
-        currency: values['currency'],
-        pipeline: values['pipeline'],
-        priority: values['priority'],
-        description: values['description'],
-        is_won: values['is_won'],
-        reg_fee_required: values['reg_fee_required'],
-        referred_by: values['referred_by'],
-        files_received: values['files_received'],
-        contact_status: values['contact_status'],
-        files_asked: values['files_asked'],
-        est_amount_work: values['est_amount_work'] != null ? double.tryParse(values['est_amount_work'].toString()) : null,
-        create_invoice_share: values['create_invoice_share'],
-        expense_spent: values['expense_spent'] != null ? double.tryParse(values['expense_spent'].toString()) : null,
-        upload_invoice_path: values['upload_invoice_path'],
-        send_to_customer: values['send_to_customer'],
-        register_no: values['register_no'],
-        invoice_amount: values['invoice_amount'] != null ? double.tryParse(values['invoice_amount'].toString()) : null,
-        payment_type: values['payment_type'],
-        drive_link: values['drive_link'],
-        billing_id: values['billing_id'],
-        quotation_id: values['quotation_id'],
-        payment_received: values['payment_received'] != null ? double.tryParse(values['payment_received'].toString()) : null,
-        part_payment_amount: values['part_payment_amount'] != null ? double.tryParse(values['part_payment_amount'].toString()) : null,
-        noc_obtained: values['noc_obtained'],
-        expenses_list: values['expenses_list'] is List ? jsonEncode(values['expenses_list']) : values['expenses_list']?.toString(),
-      );
+      Deals? c;
+      try {
+        final req = ModelQueries.get(Deals.classType, DealsModelIdentifier(id: id.toString()));
+        final res = await Amplify.API.query(request: req).response;
+        c = res.data;
+      } catch (e) {
+        debugPrint('Direct get in updateDeal failed: $e');
+      }
+
+      if (c == null) {
+        final listReq = ModelQueries.list(Deals.classType, where: Deals.ID.eq(id.toString()), limit: 1);
+        final listRes = await Amplify.API.query(request: listReq).response;
+        if (listRes.data?.items.isNotEmpty == true) {
+          c = listRes.data!.items.first;
+        }
+      }
+
+      final Deals updated;
+      if (c != null) {
+        updated = c.copyWith(
+          name: values['name'],
+          client_id: values['client_id'],
+          client_name: values['client_name'],
+          contact_info: values['contact_info'],
+          company: values['company'],
+          work_type: values['work_type'],
+          stage: values['stage'],
+          responsible_id: values['responsible_id'],
+          responsible_name: values['responsible_name'],
+          amount: values['amount'] != null ? double.tryParse(values['amount'].toString()) : null,
+          currency: values['currency'],
+          pipeline: values['pipeline'],
+          priority: values['priority'],
+          description: values['description'],
+          is_won: values['is_won'],
+          reg_fee_required: values['reg_fee_required'],
+          referred_by: values['referred_by'],
+          files_received: values['files_received'],
+          contact_status: values['contact_status'],
+          files_asked: values['files_asked'],
+          est_amount_work: values['est_amount_work'] != null ? double.tryParse(values['est_amount_work'].toString()) : null,
+          create_invoice_share: values['create_invoice_share'],
+          expense_spent: values['expense_spent'] != null ? double.tryParse(values['expense_spent'].toString()) : null,
+          upload_invoice_path: values['upload_invoice_path'],
+          send_to_customer: values['send_to_customer'],
+          register_no: values['register_no'],
+          invoice_amount: values['invoice_amount'] != null ? double.tryParse(values['invoice_amount'].toString()) : null,
+          payment_type: values['payment_type'],
+          drive_link: values['drive_link'],
+          billing_id: values['billing_id'],
+          quotation_id: values['quotation_id'],
+          payment_received: values['payment_received'] != null ? double.tryParse(values['payment_received'].toString()) : null,
+          part_payment_amount: values['part_payment_amount'] != null ? double.tryParse(values['part_payment_amount'].toString()) : null,
+          noc_obtained: values['noc_obtained'],
+          expenses_list: values['expenses_list'] is List ? jsonEncode(values['expenses_list']) : values['expenses_list']?.toString(),
+        );
+      } else {
+        values['id'] = id.toString();
+        updated = Deals.fromJson(values);
+      }
       
       await BackupAwareApi().update(updated);
 
@@ -225,7 +261,42 @@ class DealService {
       );
     } catch (e) {
       debugPrint('Error updateDeal: $e');
+      rethrow;
     }
+  }
+
+  Future<void> passLeadToWork({
+    required old.Deal lead,
+    required String clientId,
+    required String clientName,
+    int? currentUserId,
+  }) async {
+    final updatedDeal = lead.copyWith(
+      clientId: int.tryParse(clientId) ?? lead.clientId,
+      clientName: clientName,
+      isWon: true,
+      stage: (lead.stage == 'Registration' || lead.stage == 'Contact Customer' || lead.stage == 'Lead')
+          ? 'Work Started'
+          : lead.stage,
+      closedAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    await updateDeal(updatedDeal);
+
+    await addActivity(oldActivity.DealActivity(
+      dealId: lead.id!,
+      type: 'status',
+      title: 'Lead Passed to Work & Client',
+      description: 'Passed from CRM into active Work Management and registered as Client in Client Management.',
+      createdBy: currentUserId ?? 1,
+    ));
+
+    await NotificationService().notifyStakeholders(
+      title: 'CRM Lead Passed to Work',
+      message: 'Lead "${lead.name}" for client "$clientName" was passed to Work Management.',
+      dealId: lead.id,
+    );
   }
 
   Future<void> moveDealToStage(dynamic dealId, String fromStage, String toStage) async {
@@ -329,6 +400,15 @@ class DealService {
           type: 'assignment',
           dealId: dealId,
         );
+
+        unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+          staffUserId: toUserId,
+          assignmentTitle: dealName,
+          workOrTaskType: 'Work Handover',
+          clientName: c.client_name,
+          assignedByName: fromUserName,
+          details: note.isNotEmpty ? note : 'Work has been handed over to you.',
+        ));
       }
     } catch (e) {
       debugPrint('Error handoverDeal: $e');
@@ -359,6 +439,13 @@ class DealService {
         message: 'Team for "$dealName" has been updated.',
         type: 'assignment',
       );
+
+      unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+        staffUserId: userId,
+        assignmentTitle: dealName,
+        workOrTaskType: 'Work Team ($role)',
+        details: 'You have been assigned to "$dealName" as a team member ($role).',
+      ));
     } catch (e) {
       debugPrint('Error addAssignee: $e');
     }

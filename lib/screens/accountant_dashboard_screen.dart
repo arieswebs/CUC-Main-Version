@@ -13,6 +13,7 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import '../models/ModelProvider.dart';
 import '../widgets/premium_app_bar.dart';
 import '../widgets/startup_task_popup.dart';
+import '../services/meta_service.dart';
 
 class AccountantDashboardScreen extends StatefulWidget {
   final bool hideScaffold;
@@ -568,13 +569,11 @@ class _AccountantDashboardScreenState extends State<AccountantDashboardScreen> {
                     onTap: () async {
                       final phone = inv['phone']?.toString().replaceAll(RegExp(r'[^0-9]'), '');
                       if (phone != null && phone.isNotEmpty) {
-                        final String message = Uri.encodeComponent('Hello ${inv['client']},\nThis is a gentle reminder regarding Invoice ${inv['no']} for ₹${inv['amount']}. Please arrange the payment at your earliest convenience.');
-                        final String whatsappUrl = "https://wa.me/$phone?text=$message";
-                        try {
-                          await launchUrl(Uri.parse(whatsappUrl), mode: LaunchMode.externalApplication);
-                        } catch (e) {
-                          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open WhatsApp: $e')));
-                        }
+                        final String message = 'Hello ${inv['client']},\nThis is a gentle reminder regarding Invoice ${inv['no']} for ₹${inv['amount']}. Please arrange the payment at your earliest convenience.\n- Cochin United Consultancy';
+                        await WhatsAppCloudService.launchWhatsAppApp(
+                          phone: phone,
+                          message: message,
+                        );
                       } else {
                         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No phone number available for ${inv['client']}')));
                       }

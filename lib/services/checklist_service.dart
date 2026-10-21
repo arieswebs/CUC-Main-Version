@@ -5,8 +5,10 @@ import '../models/checklist.dart' as old;
 import 'auth_service.dart';
 import 'notification_service.dart';
 import 'logging_service.dart';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cuc_app/services/backup_aware_api.dart';
+import 'meta_service.dart';
 
 class ChecklistService {
 
@@ -119,6 +121,17 @@ class ChecklistService {
           message: "${managerName ?? 'Manager'} assigned you a new checklist: ${checklist.title}",
           type: 'checklist',
         );
+
+        // Lively real-time WhatsApp alert to assigned staff member's company phone
+        unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+          staffUserId: checklist.responsibleId!,
+          assignmentTitle: checklist.title,
+          workOrTaskType: 'Daily Task (Manager Master)',
+          clientName: checklist.dealName,
+          dueDate: checklist.dueDate,
+          assignedByName: managerName ?? 'Manager',
+          details: checklist.description ?? 'Task assigned to you in Manager Master.',
+        ));
       }
       await LoggingService().logAction(action: 'CHECKLIST_CREATED', targetType: 'Checklist', targetId: checklistId?.toString(), details: 'Created checklist: ${checklist.title}');
       return checklistId;

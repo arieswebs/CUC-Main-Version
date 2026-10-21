@@ -19,8 +19,7 @@ import 'screens/manager_dashboard_screen.dart';
 import 'screens/delivery_dashboard_screen.dart';
 import 'screens/client_portal/client_portal_dashboard_screen.dart';
 import 'services/time_tracking_service.dart';
-
-
+import 'services/meta_service.dart';
 
 final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -84,6 +83,12 @@ Future<void> main() async {
   // Wire up desktop notification toast support
   NotificationService.scaffoldMessengerKey = _scaffoldMessengerKey;
 
+  // Start embedded Meta Webhook Server for inbound WhatsApp & Lead automation
+  try {
+    MetaWebhookServer().startServer(port: 8088);
+  } catch (e) {
+    debugPrint('Meta Webhook Server startup note: $e');
+  }
 
   // Force login on every startup to track time accurately
   // This also gracefully logs out any session that was previously killed unexpectedly

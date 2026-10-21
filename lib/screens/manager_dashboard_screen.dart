@@ -28,6 +28,7 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import '../models/ModelProvider.dart' as amplify_models;
 import 'dart:convert';
 import '../widgets/premium_app_bar.dart';
+import '../services/meta_service.dart';
 import '../services/auth_service.dart';
 import '../models/billing.dart';
 import '../utils/number_to_words.dart';
@@ -56,6 +57,7 @@ import '../widgets/startup_task_popup.dart';
 import '../services/auto_backup_service.dart';
 import 'formats_screen.dart';
 import 'attendance_screen.dart';
+import 'crm_screen.dart';
 
 class ManagerDashboardScreen extends StatefulWidget {
   const ManagerDashboardScreen({super.key});
@@ -500,12 +502,16 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                 children: [
                 Expanded(
                   child: Container(
-                    padding: EdgeInsets.all(isWide ? 32 : 16),
+                    padding: _selectedIndex == 31
+                        ? EdgeInsets.zero
+                        : EdgeInsets.fromLTRB(isWide ? 24 : 16, isWide ? 18 : 12, isWide ? 24 : 16, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildHeader(isWide),
-                        const SizedBox(height: 32),
+                        if (_selectedIndex != 31) ...[
+                          _buildHeader(isWide),
+                          SizedBox(height: isWide ? 16 : 10),
+                        ],
                         Expanded(
                         child: _isLoading 
                           ? const Center(child: CircularProgressIndicator())
@@ -578,14 +584,39 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Manager Master',
-                    style: TextStyle(fontSize: isWide ? 28 : 20, fontWeight: FontWeight.bold, letterSpacing: -1),
-                  ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1),
-                  if (isWide) const Text(
-                    'Overseeing operations, staff performance, and global metrics.',
-                    style: TextStyle(color: AppTheme.mutedTextColor),
-                  ).animate().fadeIn(delay: 100.ms),
+                  Row(
+                    children: [
+                      if (_selectedIndex != 0) ...[
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                          tooltip: 'Back to Dashboard',
+                          onPressed: () => setState(() {
+                            _selectedIndex = 0;
+                            _selectedCategory = null;
+                          }),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.grey.shade100,
+                            padding: const EdgeInsets.all(8),
+                            minimumSize: const Size(36, 36),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      Text(
+                        _selectedIndex == 6 ? 'Work Management' : 'Manager Master',
+                        style: TextStyle(fontSize: isWide ? 26 : 20, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                      ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.1),
+                    ],
+                  ),
+                  if (isWide) Padding(
+                    padding: EdgeInsets.only(left: _selectedIndex != 0 ? 46.0 : 0),
+                    child: Text(
+                      _selectedIndex == 6
+                          ? 'Overseeing project pipelines, stages, and team assignments.'
+                          : 'Overseeing operations, staff performance, and global metrics.',
+                      style: const TextStyle(color: AppTheme.mutedTextColor, fontSize: 13),
+                    ).animate().fadeIn(delay: 100.ms),
+                  ),
                 ],
               ),
             ),
@@ -709,6 +740,7 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       case 7: return _buildSettingsPage();
       case 29: return const FormatsScreen();
       case 30: return const AttendanceScreen();
+      case 31: return CrmScreen(onBack: () => setState(() => _selectedIndex = 0));
       default: return _buildPlaceholderView('Coming Soon');
     }
   }
@@ -1739,9 +1771,10 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
                   Navigator.pop(context);
                   final phone = item['data']?['phone'] ?? item['data']?['contact_info'] ?? '';
                   if (phone.isNotEmpty) {
-                    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
-                    final whatsappUrl = "https://wa.me/$cleanPhone";
-                    launchUrl(Uri.parse(whatsappUrl), mode: LaunchMode.externalApplication);
+                    WhatsAppCloudService.launchWhatsAppApp(
+                      phone: phone.toString(),
+                      message: 'Hello, this is regarding your service with Cochin United Consultancy.',
+                    );
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Phone number not found')));
                   }

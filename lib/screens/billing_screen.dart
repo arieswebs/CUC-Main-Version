@@ -24,6 +24,7 @@ import 'package:amplify_flutter/amplify_flutter.dart';
 import '../models/ModelProvider.dart';
 import '../widgets/premium_app_bar.dart';
 import '../services/supabase_backup_service.dart';
+import '../services/meta_service.dart';
 class BillingScreen extends StatefulWidget {
   const BillingScreen({super.key});
   @override
@@ -668,12 +669,10 @@ class _BillingScreenState extends State<BillingScreen> {
       }
       final typeStr = b.type == 'QUOTATION' ? 'Quotation' : 'Invoice';
       final text = "Hello ${b.clientName},\n\nPlease find your $typeStr (${b.invoiceNo}) for ₹${b.amount} attached.\n\nThank you,\nCochin United Consultancy";
-      final url = Uri.parse("https://wa.me/$phone?text=${Uri.encodeComponent(text)}");
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url);
-      } else {
-        _msg('Could not launch WhatsApp.', false);
-      }
+      await WhatsAppCloudService.launchWhatsAppApp(
+        phone: phone,
+        message: text,
+      );
     } catch (e) {
       _msg('Failed to open WhatsApp: $e', false);
     }

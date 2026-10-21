@@ -9,6 +9,9 @@ import '../models/deal.dart';
 import '../services/supabase_backup_service.dart';
 import '../theme.dart';
 import '../services/logging_service.dart';
+import 'dart:async';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/meta_service.dart';
 import '../widgets/premium_app_bar.dart';
 import '../widgets/slide_to_action.dart';
 import '../services/excel_service.dart';
@@ -1652,6 +1655,23 @@ class _ChecklistScreenState extends State<ChecklistScreen> with SingleTickerProv
         );
 
         await _checklistService.updateChecklist(updatedChecklist);
+        final targetStaffId = respId ?? staff['id'] ?? staff['name'];
+        if (targetStaffId != null) {
+          final prefs = await SharedPreferences.getInstance();
+          final currentUserName = prefs.getString('user_name') ?? 'Manager';
+          unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+            staffUserId: targetStaffId,
+            assignmentTitle: updatedChecklist.title,
+            workOrTaskType: 'Daily Task (Manager Master)',
+            clientName: dealName,
+            dueDate: dateString,
+            priority: draft.priority,
+            assignedByName: currentUserName,
+            details: draft.descController.text.trim().isNotEmpty
+                ? draft.descController.text.trim()
+                : 'Task updated in Manager Master.',
+          ));
+        }
         await LoggingService().logAction(
           action: 'TASK_UPDATED',
           targetType: 'Checklist Task',
@@ -1682,6 +1702,22 @@ class _ChecklistScreenState extends State<ChecklistScreen> with SingleTickerProv
               dueDate: dateString,
             );
             await _checklistService.createChecklist(checklist);
+            if (checklist.responsibleId == null && (staff['id'] != null || staff['name'] != null)) {
+              final prefs = await SharedPreferences.getInstance();
+              final currentUserName = prefs.getString('user_name') ?? 'Manager';
+              unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+                staffUserId: staff['id'] ?? staff['name'],
+                assignmentTitle: checklist.title,
+                workOrTaskType: 'Daily Task (Manager Master)',
+                clientName: dealName,
+                dueDate: dateString,
+                priority: draft.priority,
+                assignedByName: currentUserName,
+                details: draft.descController.text.trim().isNotEmpty
+                    ? draft.descController.text.trim()
+                    : 'Task assigned to you in Manager Master.',
+              ));
+            }
             await LoggingService().logAction(
               action: 'TASK_CREATED',
               targetType: 'Checklist Task',
