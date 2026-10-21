@@ -131,17 +131,34 @@ async function processMetaLead({
     return;
   }
 
-  // 1. Fetch lead details from Meta Graph API
-  const leadUrl = `https://graph.facebook.com/${graphVersion}/${leadgenId}?access_token=${encodeURIComponent(accessToken)}`;
-  const resp = await fetch(leadUrl);
-  if (!resp.ok) {
-    const errText = await resp.text();
-    console.error(`Failed to fetch leadgen ${leadgenId} from Meta:`, errText);
-    return;
-  }
+  // 1. Fetch lead details from Meta Graph API (or handle sample dummy event from Meta console)
+  let leadData: MetaLeadResponse;
 
-  const leadData = (await resp.json()) as MetaLeadResponse;
-  console.log('Fetched lead details from Meta:', JSON.stringify(leadData, null, 2));
+  if (leadgenId === '444444444444' || leadgenId.startsWith('4444')) {
+    console.log('Detected Meta sample/test leadgen ID:', leadgenId);
+    leadData = {
+      id: leadgenId,
+      campaign_name: 'Meta Webhook Console Sample',
+      form_name: 'Lead Ads Sample Form',
+      field_data: [
+        { name: 'full_name', values: ['Meta Sample Test Lead'] },
+        { name: 'phone_number', values: ['+91 7907675024'] },
+        { name: 'city', values: ['Kochi, Kerala'] },
+        { name: 'service_required', values: ['Legal Consulting / Registration (Sample)'] },
+      ],
+    };
+  } else {
+    const leadUrl = `https://graph.facebook.com/${graphVersion}/${leadgenId}?access_token=${encodeURIComponent(accessToken)}`;
+    const resp = await fetch(leadUrl);
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error(`Failed to fetch leadgen ${leadgenId} from Meta:`, errText);
+      return;
+    }
+
+    leadData = (await resp.json()) as MetaLeadResponse;
+  }
+  console.log('Lead details processed:', JSON.stringify(leadData, null, 2));
 
   // 2. Parse field_data
   let name = '';
