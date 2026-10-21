@@ -314,16 +314,29 @@ class MetaLeadService {
     }
 
     final descriptionBuffer = StringBuffer();
-    descriptionBuffer.writeln('🎯 [Source: Meta Lead Ads (Facebook/Instagram)]');
-    if (lead.id.isNotEmpty) descriptionBuffer.writeln('Lead ID: ${lead.id}');
-    if (lead.campaignName != null) descriptionBuffer.writeln('Campaign: ${lead.campaignName}');
-    if (lead.adName != null) descriptionBuffer.writeln('Ad: ${lead.adName}');
-    if (lead.email != null) descriptionBuffer.writeln('Email: ${lead.email}');
+    if (lead.email != null && lead.email!.isNotEmpty) {
+      descriptionBuffer.writeln('Email: ${lead.email}');
+    }
     if (lead.rawFields.isNotEmpty) {
-      descriptionBuffer.writeln('\n--- Form Responses ---');
       lead.rawFields.forEach((k, v) {
-        descriptionBuffer.writeln('$k: $v');
+        final keyLower = k.toLowerCase().trim();
+        // Skip basic contact fields already captured in Deal fields
+        if (keyLower != 'full name' &&
+            keyLower != 'full_name' &&
+            keyLower != 'phone number' &&
+            keyLower != 'phone_number' &&
+            keyLower != 'phone' &&
+            keyLower != 'city' &&
+            keyLower != 'service needed' &&
+            keyLower != 'work_type') {
+          descriptionBuffer.writeln('$k: $v');
+        }
       });
+    }
+
+    String leadSource = 'Meta Lead Ads (Facebook/Instagram)';
+    if (lead.campaignName != null && lead.campaignName!.trim().isNotEmpty) {
+      leadSource = 'Meta Ads: ${lead.campaignName!.trim()}';
     }
 
     final newDeal = Deal(
@@ -334,8 +347,8 @@ class MetaLeadService {
       contactInfo: lead.phone,
       company: lead.city ?? 'Facebook/Instagram',
       workType: lead.workType ?? 'Meta Lead Ad Inquiry',
-      referredBy: 'Meta Lead Ads',
-      description: descriptionBuffer.toString(),
+      referredBy: leadSource,
+      description: descriptionBuffer.toString().trim(),
       createdAt: lead.createdTime,
     );
 

@@ -427,12 +427,26 @@ class _CrmScreenState extends State<CrmScreen>
                               ],
                             ),
                           ],
-                          if (deal.description != null && deal.description!.trim().isNotEmpty) ...[
+                          final (alarmSource, alarmNotes) = _extractSourceAndNotes(deal);
+                          if (alarmSource.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.campaign_outlined, size: 12, color: Color(0xFF38BDF8)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  alarmSource,
+                                  style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ],
+                          if (alarmNotes.isNotEmpty) ...[
                             const SizedBox(height: 10),
                             const Divider(color: Color(0xFF262A3C), height: 1),
                             const SizedBox(height: 8),
                             Text(
-                              deal.description!,
+                              alarmNotes,
                               style: const TextStyle(color: Colors.white60, fontSize: 12),
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
@@ -755,6 +769,61 @@ class _CrmScreenState extends State<CrmScreen>
     }
   }
 
+  (String, String) _extractSourceAndNotes(Deal deal) {
+    String source = deal.referredBy?.trim() ?? '';
+    String rawDesc = deal.description?.trim() ?? '';
+
+    // Check if description has legacy or embedded Meta/ad source block
+    if (rawDesc.contains('[Source:') || rawDesc.contains('🎯 [Source:')) {
+      final lines = rawDesc.split('\n');
+      final cleanNotesLines = <String>[];
+      String? foundSource;
+      String? foundCampaign;
+
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i].trim();
+        if (line.isEmpty) continue;
+
+        if (line.contains('[Source:')) {
+          final match = RegExp(r'\[Source:\s*([^\]]+)\]').firstMatch(line);
+          if (match != null) {
+            foundSource = match.group(1)?.trim();
+          }
+          continue;
+        }
+        if (line.startsWith('Lead ID:')) {
+          continue;
+        }
+        if (line.startsWith('Campaign:')) {
+          foundCampaign = line.substring('Campaign:'.length).trim();
+          continue;
+        }
+        if (line.startsWith('Ad:')) {
+          continue;
+        }
+        if (line.startsWith('--- Form Responses ---') || line.startsWith('Form Responses:')) {
+          continue;
+        }
+
+        cleanNotesLines.add(lines[i]);
+      }
+
+      if (source.isEmpty || source.toLowerCase() == 'meta lead ads') {
+        if (foundSource != null && foundSource.isNotEmpty) {
+          source = foundSource;
+        } else if (foundCampaign != null && foundCampaign.isNotEmpty) {
+          source = 'Meta Ads: $foundCampaign';
+        } else if (source.isEmpty) {
+          source = 'Meta Lead Ads';
+        }
+      }
+
+      return (source, cleanNotesLines.join('\n').trim());
+    }
+
+    return (source, rawDesc);
+  }
+
   void _openDeal(Deal deal) {
     _showLeadDetailsDialog(deal);
   }
@@ -770,11 +839,13 @@ class _CrmScreenState extends State<CrmScreen>
 
   Future<void> _showLeadDetailsDialog(Deal initialDeal) async {
     Deal currentDeal = initialDeal;
+    final (extractedSource, cleanNotes) = _extractSourceAndNotes(currentDeal);
     final nameController = TextEditingController(text: currentDeal.name);
     final phoneController = TextEditingController(text: currentDeal.contactInfo ?? '');
     final placeController = TextEditingController(text: currentDeal.company ?? '');
     final workTypeController = TextEditingController(text: currentDeal.workType ?? '');
-    final notesController = TextEditingController(text: currentDeal.description ?? '');
+    final sourceController = TextEditingController(text: extractedSource);
+    final notesController = TextEditingController(text: cleanNotes);
     String selectedPriority = currentDeal.priority.isNotEmpty ? currentDeal.priority : 'Normal';
     final formKey = GlobalKey<FormState>();
     bool isSaving = false;
@@ -1114,7 +1185,11 @@ class _CrmScreenState extends State<CrmScreen>
                                         if (updatedAfterFollowUp != null) {
                                           setDialogState(() {
                                             currentDeal = updatedAfterFollowUp;
-                                            notesController.text = updatedAfterFollowUp.description ?? '';
+                                            final (src, nts) = _extractSourceAndNotes(updatedAfterFollowUp);
+                                            if (sourceController.text.trim().isEmpty) {
+                                              sourceController.text = src;
+                                            }
+                                            notesController.text = nts;
                                           });
                                         }
                                       },
@@ -1191,6 +1266,58 @@ class _CrmScreenState extends State<CrmScreen>
                               ),
                               const SizedBox(height: 14),
 
+                              // Lead Source
+                              _buildLeadDialogField(
+                                controller: sourceController,
+                                label: 'Lead Source',
+                                isRequired: false,
+                                hint: 'e.g. Meta Lead Ads, Direct Call, Referral, Walk-in...',
+                                icon: Icons.campaign_rounded,
+                              ),
+                              const SizedBox(height: 7),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: [
+                                  'Meta Lead Ads',
+                                  'Direct Call',
+                                  'WhatsApp',
+                                  'Client Referral',
+                                  'Walk-in',
+                                  'Website',
+                                ].map((preset) => InkWell(
+                                  onTap: () {
+                                    setDialogState(() {
+                                      sourceController.text = preset;
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(6),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10121C),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: sourceController.text.trim() == preset
+                                            ? AppTheme.primaryColor
+                                            : const Color(0xFF282C3F),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      preset,
+                                      style: TextStyle(
+                                        color: sourceController.text.trim() == preset
+                                            ? AppTheme.primaryColor
+                                            : Colors.white70,
+                                        fontSize: 11,
+                                        fontWeight: sourceController.text.trim() == preset ? FontWeight.bold : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                )).toList(),
+                              ),
+                              const SizedBox(height: 14),
+
                               // Priority Selector
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1238,7 +1365,7 @@ class _CrmScreenState extends State<CrmScreen>
                               ),
                               const SizedBox(height: 14),
 
-                              // Notes
+                              // Notes / Inquiry Discussion
                               _buildLeadDialogField(
                                 controller: notesController,
                                 label: 'Notes / Inquiry Discussion',
@@ -1365,6 +1492,7 @@ class _CrmScreenState extends State<CrmScreen>
                                             contactInfo: phoneController.text.trim(),
                                             company: placeController.text.trim(),
                                             workType: workTypeController.text.trim(),
+                                            referredBy: sourceController.text.trim(),
                                             description: notesController.text.trim(),
                                             priority: selectedPriority,
                                             postponedDate: currentDeal.postponedDate,
@@ -1444,6 +1572,7 @@ class _CrmScreenState extends State<CrmScreen>
     final phoneController = TextEditingController();
     final placeController = TextEditingController();
     final workTypeController = TextEditingController();
+    final sourceController = TextEditingController();
     final notesController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isSaving = false;
@@ -1583,7 +1712,58 @@ class _CrmScreenState extends State<CrmScreen>
                         ),
                         const SizedBox(height: 16),
 
-                        // 5. Notes
+                        // 5. Lead Source
+                        _buildLeadDialogField(
+                          controller: sourceController,
+                          label: 'Lead Source',
+                          hint: 'e.g. Meta Lead Ads, Direct Call, Referral, Walk-in...',
+                          icon: Icons.campaign_rounded,
+                        ),
+                        const SizedBox(height: 7),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: [
+                            'Meta Lead Ads',
+                            'Direct Call',
+                            'WhatsApp',
+                            'Client Referral',
+                            'Walk-in',
+                            'Website',
+                          ].map((preset) => InkWell(
+                            onTap: () {
+                              setDialogState(() {
+                                sourceController.text = preset;
+                              });
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF10121C),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: sourceController.text.trim() == preset
+                                      ? AppTheme.primaryColor
+                                      : const Color(0xFF282C3F),
+                                ),
+                              ),
+                              child: Text(
+                                preset,
+                                style: TextStyle(
+                                  color: sourceController.text.trim() == preset
+                                      ? AppTheme.primaryColor
+                                      : Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: sourceController.text.trim() == preset ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          )).toList(),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 6. Notes
                         _buildLeadDialogField(
                           controller: notesController,
                           label: 'Notes',
@@ -1624,6 +1804,7 @@ class _CrmScreenState extends State<CrmScreen>
                                     contactInfo: phoneController.text.trim(),
                                     company: placeController.text.trim(),
                                     workType: enteredWorkType,
+                                    referredBy: sourceController.text.trim(),
                                     description: notesController.text.trim(),
                                     pipeline: 'CRM',
                                     stage: stageCreated,
@@ -2824,7 +3005,8 @@ class _CrmScreenState extends State<CrmScreen>
                                   : () async {
                                       setDialogState(() => isSaving = true);
                                       final note = noteController.text.trim();
-                                      String? updatedDescription = deal.description;
+                                      final (extractedSource, cleanNotes) = _extractSourceAndNotes(deal);
+                                      String? updatedDescription = cleanNotes.isNotEmpty ? cleanNotes : null;
                                       if (note.isNotEmpty) {
                                         final timestamp = DateFormat('dd MMM, hh:mm a').format(DateTime.now());
                                         final prefix = updatedDescription?.trim().isNotEmpty == true
@@ -2834,6 +3016,9 @@ class _CrmScreenState extends State<CrmScreen>
                                       }
 
                                       final updated = deal.copyWith(
+                                        referredBy: deal.referredBy?.trim().isNotEmpty == true
+                                            ? deal.referredBy
+                                            : (extractedSource.isNotEmpty ? extractedSource : null),
                                         postponedDate: combinedDateTime,
                                         contactStatus: selectedStatus,
                                         description: updatedDescription,
@@ -4320,11 +4505,45 @@ class _CrmScreenState extends State<CrmScreen>
               ),
             ],
 
+            final (cardSource, cardNotes) = _extractSourceAndNotes(deal);
+
+            // Lead Source Badge
+            if (cardSource.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0284C7).withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.campaign_outlined, size: 11, color: Color(0xFF38BDF8)),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        cardSource,
+                        style: const TextStyle(
+                          color: Color(0xFF38BDF8),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Notes / Description
-            if (deal.description != null && deal.description!.trim().isNotEmpty) ...[
+            if (cardNotes.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(
-                deal.description!,
+                cardNotes,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -4738,10 +4957,29 @@ class _CrmScreenState extends State<CrmScreen>
                         ),
                     ],
                   ),
-                  if (deal.description != null && deal.description!.trim().isNotEmpty) ...[
+                  final (listSource, listNotes) = _extractSourceAndNotes(deal);
+                  if (listSource.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.campaign_outlined, size: 11, color: Color(0xFF38BDF8)),
+                        const SizedBox(width: 4),
+                        Text(
+                          listSource,
+                          style: const TextStyle(
+                            color: Color(0xFF38BDF8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (listNotes.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
-                      deal.description!,
+                      listNotes,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
