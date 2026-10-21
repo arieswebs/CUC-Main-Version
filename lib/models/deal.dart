@@ -131,7 +131,9 @@ class Deal {
     double? paymentReceived,
     bool? isAdjourned,
     String? adjournedReason,
+    bool clearAdjournedReason = false,
     DateTime? postponedDate,
+    bool clearPostponedDate = false,
     double? partPaymentAmount,
     bool? nocObtained,
   }) {
@@ -174,8 +176,8 @@ class Deal {
       quotationId: quotationId ?? this.quotationId,
       paymentReceived: paymentReceived ?? this.paymentReceived,
       isAdjourned: isAdjourned ?? this.isAdjourned,
-      adjournedReason: adjournedReason ?? this.adjournedReason,
-      postponedDate: postponedDate ?? this.postponedDate,
+      adjournedReason: clearAdjournedReason ? null : (adjournedReason ?? this.adjournedReason),
+      postponedDate: clearPostponedDate ? null : (postponedDate ?? this.postponedDate),
       partPaymentAmount: partPaymentAmount ?? this.partPaymentAmount,
       nocObtained: nocObtained ?? this.nocObtained,
     );
@@ -196,12 +198,17 @@ class Deal {
 
   Map<String, dynamic> toMap() {
     final String adjBlock;
-    if (isAdjourned || postponedDate != null) {
-      final dateStr = postponedDate != null
+    final hasReason = (adjournedReason != null && adjournedReason!.trim().isNotEmpty);
+    final hasPostponed = postponedDate != null;
+    final effectiveIsAdjourned = isAdjourned || hasReason;
+
+    if (effectiveIsAdjourned || hasPostponed) {
+      final dateStr = hasPostponed
           ? "\nPostponedDate: ${postponedDate!.toIso8601String()}"
           : "";
+      final cleanReason = hasReason ? adjournedReason!.trim() : '';
       adjBlock =
-          "\n\n[ADJOURNED]\nIsAdjourned: ${isAdjourned ? 'true' : 'false'}\nReason: ${adjournedReason ?? ''}$dateStr";
+          "\n\n[ADJOURNED]\nIsAdjourned: ${effectiveIsAdjourned ? 'true' : 'false'}\nReason: $cleanReason$dateStr";
     } else {
       adjBlock = "";
     }
@@ -259,8 +266,10 @@ class Deal {
   factory Deal.fromMap(Map<String, dynamic> map) {
     final rawDesc = map['description'] as String? ?? '';
     bool isAdj = false;
-    String? adjReason;
-    DateTime? postDate;
+    String? adjReason = map['adjourned_reason'] as String?;
+    DateTime? postDate = map['postponed_date'] != null
+        ? DateTime.tryParse(map['postponed_date'].toString())
+        : null;
     String cleanDesc = rawDesc;
 
     final index = rawDesc.indexOf('[ADJOURNED]');
@@ -273,11 +282,21 @@ class Deal {
         isAdj = isAdjMatch.group(1)?.toLowerCase() == 'true';
       }
 
-      final reasonMatch = RegExp(r'Reason:[ \t]*([^\r\n]*)', caseSensitive: false).firstMatch(adjPart);
+      final reasonMatch = RegExp(r'Reason:[ \t]*(.*?)(?=\nPostponedDate:|\nIsAdjourned:|$)', dotAll: true, caseSensitive: false).firstMatch(adjPart);
       if (reasonMatch != null) {
         final rStr = reasonMatch.group(1)?.trim();
         if (rStr != null && rStr.isNotEmpty) {
           adjReason = rStr;
+        }
+      }
+
+      if (adjReason == null) {
+        final singleLineMatch = RegExp(r'Reason:[ \t]*([^\r\n]*)', caseSensitive: false).firstMatch(adjPart);
+        if (singleLineMatch != null) {
+          final rStr = singleLineMatch.group(1)?.trim();
+          if (rStr != null && rStr.isNotEmpty) {
+            adjReason = rStr;
+          }
         }
       }
 
