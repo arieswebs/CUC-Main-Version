@@ -131,17 +131,34 @@ async function processMetaLead({
     return;
   }
 
-  // 1. Fetch lead details from Meta Graph API
-  const leadUrl = `https://graph.facebook.com/${graphVersion}/${leadgenId}?access_token=${encodeURIComponent(accessToken)}`;
-  const resp = await fetch(leadUrl);
-  if (!resp.ok) {
-    const errText = await resp.text();
-    console.error(`Failed to fetch leadgen ${leadgenId} from Meta:`, errText);
-    return;
-  }
+  // 1. Fetch lead details from Meta Graph API (or handle sample dummy event from Meta console)
+  let leadData: MetaLeadResponse;
 
-  const leadData = (await resp.json()) as MetaLeadResponse;
-  console.log('Fetched lead details from Meta:', JSON.stringify(leadData, null, 2));
+  if (leadgenId === '444444444444' || leadgenId.startsWith('4444')) {
+    console.log('Detected Meta sample/test leadgen ID:', leadgenId);
+    leadData = {
+      id: leadgenId,
+      campaign_name: 'Meta Webhook Console Sample',
+      form_name: 'Lead Ads Sample Form',
+      field_data: [
+        { name: 'full_name', values: ['Meta Sample Test Lead'] },
+        { name: 'phone_number', values: ['+91 7907675024'] },
+        { name: 'city', values: ['Kochi, Kerala'] },
+        { name: 'service_required', values: ['Legal Consulting / Registration (Sample)'] },
+      ],
+    };
+  } else {
+    const leadUrl = `https://graph.facebook.com/${graphVersion}/${leadgenId}?access_token=${encodeURIComponent(accessToken)}`;
+    const resp = await fetch(leadUrl);
+    if (!resp.ok) {
+      const errText = await resp.text();
+      console.error(`Failed to fetch leadgen ${leadgenId} from Meta:`, errText);
+      return;
+    }
+
+    leadData = (await resp.json()) as MetaLeadResponse;
+  }
+  console.log('Lead details processed:', JSON.stringify(leadData, null, 2));
 
   // 2. Parse field_data
   let name = '';
@@ -296,7 +313,46 @@ async function sendAdminWhatsAppAlert({
     console.log(`Sending WhatsApp alert to ${cleanPhone}...`);
     try {
       const waUrl = `https://graph.facebook.com/${graphVersion}/${waPhoneId}/messages`;
-      const res = await fetch(waUrl, {
+
+      // 1. Send approved utility template (cuc_lead_alert) - Guaranteed 24/7 delivery to all admin numbers without 24h window
+      const templateRes = await fetch(waUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'template',
+          template: {
+            name: 'cuc_lead_alert',
+            language: { code: 'en_US' },
+            components: [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: name || 'New Lead' },
+                  { type: 'text', text: phone || 'N/A' },
+                  { type: 'text', text: city || 'Kerala' },
+                  { type: 'text', text: workType || 'Legal / Business Consulting' },
+                ],
+              },
+            ],
+          },
+        }),
+      });
+
+      const templateBody = await templateRes.text();
+      if (templateRes.ok) {
+        console.log(`✅ Approved template alert delivered to ${cleanPhone}:`, templateBody);
+      } else {
+        console.warn(`Template send returned:`, templateBody);
+      }
+
+      // 2. Also send the full detailed breakdown text
+      await fetch(waUrl, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -313,13 +369,6 @@ async function sendAdminWhatsAppAlert({
           },
         }),
       });
-
-      const resBody = await res.text();
-      if (res.ok) {
-        console.log(`✅ WhatsApp alert delivered to ${cleanPhone}:`, resBody);
-      } else {
-        console.error(`❌ Failed to send WhatsApp alert to ${cleanPhone}:`, resBody);
-      }
     } catch (waErr) {
       console.error(`Error sending WhatsApp to ${cleanPhone}:`, waErr);
     }

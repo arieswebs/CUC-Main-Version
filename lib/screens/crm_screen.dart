@@ -41,11 +41,13 @@ class _CrmScreenState extends State<CrmScreen>
   late StreamSubscription<List<Deal>> _dealSubscription;
 
   static const String stageCreated = 'Created';
+  static const String stageFollowUp = 'Follow-up';
   static const String stagePassed = 'Passed to Work';
   static const String stageLost = 'Deal Lose';
 
   static const List<String> crmStages = [
     stageCreated,
+    stageFollowUp,
     stagePassed,
     stageLost,
   ];
@@ -54,9 +56,16 @@ class _CrmScreenState extends State<CrmScreen>
     if (deal.isWon || deal.stage == 'Passed to Work' || deal.stage == 'Won') {
       return stagePassed;
     }
-    final s = deal.stage.toLowerCase();
+    final s = deal.stage.toLowerCase().trim();
     if (s == 'deal lose' || s == 'lost' || s == 'deal lost' || s == 'lose') {
       return stageLost;
+    }
+    if (s == 'follow-up' ||
+        s == 'follow-ups' ||
+        s == 'in follow-up' ||
+        s == 'follow up' ||
+        deal.postponedDate != null) {
+      return stageFollowUp;
     }
     return stageCreated;
   }
@@ -64,6 +73,7 @@ class _CrmScreenState extends State<CrmScreen>
   final List<String> _stages = [
     'All',
     stageCreated,
+    stageFollowUp,
     stagePassed,
     stageLost,
   ];
@@ -162,8 +172,9 @@ class _CrmScreenState extends State<CrmScreen>
       if (deal.id == null) continue;
       final dealIdStr = deal.id.toString();
 
-      // Only check active Created leads
-      if (getCrmStage(deal) != stageCreated) continue;
+      // Only check active Created and Follow-up leads
+      final stage = getCrmStage(deal);
+      if (stage != stageCreated && stage != stageFollowUp) continue;
       if (deal.postponedDate == null) continue;
 
       final fu = deal.postponedDate!;
@@ -615,7 +626,8 @@ class _CrmScreenState extends State<CrmScreen>
   List<Deal> get _dueRemindersNow {
     final now = DateTime.now();
     return _scopedDeals.where((d) {
-      if (getCrmStage(d) != stageCreated) return false;
+      final st = getCrmStage(d);
+      if (st != stageCreated && st != stageFollowUp) return false;
       if (d.postponedDate == null) return false;
       return d.postponedDate!.isBefore(now);
     }).toList();
@@ -727,6 +739,8 @@ class _CrmScreenState extends State<CrmScreen>
 
   List<Deal> get _createdDeals =>
       _scopedDeals.where((d) => getCrmStage(d) == stageCreated).toList();
+  List<Deal> get _followUpDeals =>
+      _scopedDeals.where((d) => getCrmStage(d) == stageFollowUp).toList();
   List<Deal> get _passedDeals =>
       _scopedDeals.where((d) => getCrmStage(d) == stagePassed).toList();
   List<Deal> get _lostDeals =>
@@ -745,6 +759,8 @@ class _CrmScreenState extends State<CrmScreen>
     switch (stage) {
       case stageCreated:
         return const Color(0xFF38BDF8);
+      case stageFollowUp:
+        return const Color(0xFFF59E0B);
       case stagePassed:
         return const Color(0xFF4ADE80);
       case stageLost:
@@ -1210,6 +1226,66 @@ class _CrmScreenState extends State<CrmScreen>
                               ),
                               const SizedBox(height: 16),
 
+                              if (stage == stageLost) ...[
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 14),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.cancel_outlined, color: Color(0xFFF87171), size: 18),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'DEAL LOSE REASON',
+                                              style: TextStyle(
+                                                color: Color(0xFFF87171),
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              currentDeal.adjournedReason?.trim().isNotEmpty == true
+                                                  ? currentDeal.adjournedReason!
+                                                  : 'No specific reason recorded',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      TextButton.icon(
+                                        onPressed: () async {
+                                          Navigator.pop(dialogCtx);
+                                          await _promptLeadLostReason(currentDeal);
+                                        },
+                                        icon: const Icon(Icons.edit_note_rounded, size: 15, color: Color(0xFFF87171)),
+                                        label: const Text(
+                                          'Edit Reason',
+                                          style: TextStyle(
+                                            color: Color(0xFFF87171),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+
                               // Form fields: Name and Phone
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1403,7 +1479,7 @@ class _CrmScreenState extends State<CrmScreen>
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (stage == stageCreated) ...[
+                              if (stage == stageCreated || stage == stageFollowUp) ...[
                                 ElevatedButton.icon(
                                   onPressed: () {
                                     Navigator.pop(dialogCtx);
@@ -1448,6 +1524,21 @@ class _CrmScreenState extends State<CrmScreen>
                                   ),
                                   icon: const Icon(Icons.replay_rounded, size: 15),
                                   label: const Text('Reopen Lead', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                ),
+                                const SizedBox(width: 8),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.pop(dialogCtx);
+                                    _promptLeadLostReason(currentDeal);
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFFF87171),
+                                    side: const BorderSide(color: Color(0xFFF87171), width: 1.0),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                  icon: const Icon(Icons.edit_note_rounded, size: 14),
+                                  label: const Text('Edit Lose Reason', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                                 ),
                               ] else if (stage == stagePassed) ...[
                                 OutlinedButton.icon(
@@ -1497,6 +1588,8 @@ class _CrmScreenState extends State<CrmScreen>
                                             priority: selectedPriority,
                                             postponedDate: currentDeal.postponedDate,
                                             contactStatus: currentDeal.contactStatus,
+                                            isAdjourned: currentDeal.isAdjourned,
+                                            adjournedReason: currentDeal.adjournedReason,
                                           );
                                           await _dealService.updateDeal(updated);
                                           setDialogState(() {
@@ -2163,10 +2256,181 @@ class _CrmScreenState extends State<CrmScreen>
     }
   }
 
-  Future<void> _markLeadAsLost(Deal deal) async {
+  Future<void> _promptLeadLostReason(Deal deal) async {
+    final reasonController = TextEditingController(text: deal.adjournedReason ?? '');
+    String selectedChip = deal.adjournedReason ?? '';
+    final isAlreadyLost = getCrmStage(deal) == stageLost;
+    final quickReasons = [
+      'Not Interested / Dropped',
+      'Price Too High / Budget Issue',
+      'Competitor Chosen',
+      'Plan Postponed / Not Ready',
+      'Out of Service Area',
+      'No Response / Invalid Number',
+    ];
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color(0xFF181A2A),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.5), width: 1.2),
+              ),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.cancel_outlined, color: Color(0xFFF87171), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    isAlreadyLost ? 'Edit Deal Lose Reason' : 'Mark as Deal Lose',
+                    style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: SizedBox(
+                width: 460,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Select or enter the reason why lead "${deal.name}" was lost:',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text('Quick Reasons:', style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: quickReasons.map((r) {
+                        final isSel = selectedChip == r || reasonController.text == r;
+                        return ChoiceChip(
+                          label: Text(
+                            r,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: isSel ? Colors.white : Colors.white70,
+                              fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          selected: isSel,
+                          selectedColor: const Color(0xFFEF4444).withValues(alpha: 0.35),
+                          backgroundColor: const Color(0xFF222638),
+                          side: BorderSide(
+                            color: isSel ? const Color(0xFFEF4444) : const Color(0xFF363C54),
+                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          onSelected: (sel) {
+                            setDialogState(() {
+                              selectedChip = sel ? r : '';
+                              if (sel) reasonController.text = r;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: reasonController,
+                      maxLines: 3,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      decoration: InputDecoration(
+                        hintText: 'Enter specific reason or notes for losing this deal...',
+                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                        filled: true,
+                        fillColor: const Color(0xFF10121C),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFF282C3F)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFF282C3F)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFEF4444)),
+                        ),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogCtx, false),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.pop(dialogCtx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFEF4444),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.check_rounded, size: 16),
+                  label: Text(
+                    isAlreadyLost ? 'Save Reason' : 'Confirm Deal Lose',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      final reason = reasonController.text.trim();
+      final updatedDeal = deal.copyWith(
+        stage: stageLost,
+        isWon: false,
+        isAdjourned: true,
+        adjournedReason: reason.isNotEmpty ? reason : 'Unspecified',
+      );
+      await _dealService.updateDeal(updatedDeal);
+      if (mounted) {
+        setState(() {
+          final idx = _deals.indexWhere((d) => d.id?.toString() == updatedDeal.id?.toString());
+          if (idx != -1) _deals[idx] = updatedDeal;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(isAlreadyLost
+                ? 'Reason for "${deal.name}" saved: ${reason.isNotEmpty ? reason : "Unspecified"}'
+                : 'Lead "${deal.name}" moved to Deal Lose: ${reason.isNotEmpty ? reason : "Marked Lost"}'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _markLeadAsLost(Deal deal, {String? reason}) async {
+    if (reason == null) {
+      await _promptLeadLostReason(deal);
+      return;
+    }
     final updatedDeal = deal.copyWith(
       stage: stageLost,
       isWon: false,
+      isAdjourned: true,
+      adjournedReason: reason,
     );
     await _dealService.updateDeal(updatedDeal);
     if (mounted) {
@@ -2176,7 +2440,7 @@ class _CrmScreenState extends State<CrmScreen>
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Lead "${deal.name}" moved to Deal Lose'),
+          content: Text('Lead "${deal.name}" moved to Deal Lose: $reason'),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
@@ -2184,10 +2448,37 @@ class _CrmScreenState extends State<CrmScreen>
     }
   }
 
+  Future<void> _moveToFollowUp(Deal deal) async {
+    if (deal.postponedDate == null) {
+      await _showFollowUpDialog(deal);
+    } else {
+      final updatedDeal = deal.copyWith(
+        stage: stageFollowUp,
+      );
+      await _dealService.updateDeal(updatedDeal);
+      if (mounted) {
+        setState(() {
+          final idx = _deals.indexWhere((d) => d.id?.toString() == updatedDeal.id?.toString());
+          if (idx != -1) _deals[idx] = updatedDeal;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lead "${deal.name}" moved to Follow-ups'),
+            backgroundColor: const Color(0xFFF59E0B),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _reopenLead(Deal deal) async {
     final updatedDeal = deal.copyWith(
       stage: stageCreated,
       isWon: false,
+      isAdjourned: false,
+      clearPostponedDate: true,
+      clearAdjournedReason: true,
     );
     await _dealService.updateDeal(updatedDeal);
     if (mounted) {
@@ -2969,7 +3260,7 @@ class _CrmScreenState extends State<CrmScreen>
                                     : () async {
                                         setDialogState(() => isSaving = true);
                                         final updated = deal.copyWith(
-                                          postponedDate: null,
+                                          clearPostponedDate: true,
                                         );
                                         await _dealService.updateDeal(updated);
                                         _notifiedReminderDealIds.remove(deal.id?.toString());
@@ -3728,6 +4019,8 @@ class _CrmScreenState extends State<CrmScreen>
               const Spacer(),
               _buildStatBadge('Created', _createdDeals.length.toString(), const Color(0xFF38BDF8)),
               const SizedBox(width: 8),
+              _buildStatBadge('Follow-ups', _followUpDeals.length.toString(), const Color(0xFFF59E0B)),
+              const SizedBox(width: 8),
               _buildStatBadge('Passed to Work', _passedDeals.length.toString(), const Color(0xFF4ADE80)),
               const SizedBox(width: 8),
               _buildStatBadge('Deal Lose', _lostDeals.length.toString(), const Color(0xFFF87171)),
@@ -4076,13 +4369,14 @@ class _CrmScreenState extends State<CrmScreen>
     }
 
     final createdList = _createdDeals.where(_matchesSearchAndPriority).toList();
+    final followUpList = _followUpDeals.where(_matchesSearchAndPriority).toList();
     final passedList = _passedDeals.where(_matchesSearchAndPriority).toList();
     final lostList = _lostDeals.where(_matchesSearchAndPriority).toList();
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 1050;
-        final colWidth = isWide ? (constraints.maxWidth - 48 - 32) / 3 : 360.0;
+        final isWide = constraints.maxWidth >= 1350;
+        final colWidth = isWide ? (constraints.maxWidth - 32 - 48) / 4 : 330.0;
 
         final columns = [
           _buildKanbanColumn(
@@ -4091,6 +4385,14 @@ class _CrmScreenState extends State<CrmScreen>
             icon: Icons.inbox_rounded,
             color: const Color(0xFF38BDF8),
             deals: createdList,
+            width: colWidth,
+          ),
+          _buildKanbanColumn(
+            stage: stageFollowUp,
+            title: 'Follow-ups',
+            icon: Icons.event_repeat_rounded,
+            color: const Color(0xFFF59E0B),
+            deals: followUpList,
             width: colWidth,
           ),
           _buildKanbanColumn(
@@ -4163,7 +4465,9 @@ class _CrmScreenState extends State<CrmScreen>
         if (stage == stagePassed) {
           _showPassLeadDialog(deal);
         } else if (stage == stageLost) {
-          _markLeadAsLost(deal);
+          _promptLeadLostReason(deal);
+        } else if (stage == stageFollowUp) {
+          _moveToFollowUp(deal);
         } else if (stage == stageCreated) {
           _reopenLead(deal);
         }
@@ -4553,6 +4857,37 @@ class _CrmScreenState extends State<CrmScreen>
               ),
             ],
 
+            // Deal Lose Reason Banner (if lost)
+            if (stage == stageLost && deal.adjournedReason != null && deal.adjournedReason!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.cancel_outlined, size: 12, color: Color(0xFFF87171)),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        'Reason: ${deal.adjournedReason}',
+                        style: const TextStyle(
+                          color: Color(0xFFF87171),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             if (deal.amount > 0) ...[
               const SizedBox(height: 6),
               Text(
@@ -4631,7 +4966,74 @@ class _CrmScreenState extends State<CrmScreen>
                   ),
                   const SizedBox(width: 6),
                   OutlinedButton.icon(
-                    onPressed: () => _markLeadAsLost(deal),
+                    onPressed: () => _promptLeadLostReason(deal),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFF87171),
+                      side: BorderSide(color: const Color(0xFFF87171).withValues(alpha: 0.4)),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.cancel_outlined, size: 13),
+                    label: const Text('Lose', style: TextStyle(fontSize: 11)),
+                  ),
+                ] else if (stage == stageFollowUp) ...[
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showPassLeadDialog(deal),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF16A34A),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      icon: const Icon(Icons.check_circle_outline, size: 13),
+                      label: const Text(
+                        'Pass to Work',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  InkWell(
+                    onTap: () => _showFollowUpDialog(deal),
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.alarm_on_rounded,
+                            size: 13,
+                            color: Color(0xFFF59E0B),
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            'Reschedule',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFFF59E0B),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  OutlinedButton.icon(
+                    onPressed: () => _promptLeadLostReason(deal),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFFF87171),
                       side: BorderSide(color: const Color(0xFFF87171).withValues(alpha: 0.4)),
@@ -4692,21 +5094,21 @@ class _CrmScreenState extends State<CrmScreen>
                   ),
                   const SizedBox(width: 6),
                   InkWell(
-                    onTap: () => _showFollowUpDialog(deal),
+                    onTap: () => _promptLeadLostReason(deal),
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
+                        color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                        border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.25)),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.event_note_rounded, size: 13, color: Colors.white70),
+                          Icon(Icons.edit_note_rounded, size: 13, color: Color(0xFFF87171)),
                           SizedBox(width: 4),
-                          Text('Follow-up', style: TextStyle(fontSize: 11, color: Colors.white70)),
+                          Text('Reason', style: TextStyle(fontSize: 11, color: Color(0xFFF87171), fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -4988,6 +5390,28 @@ class _CrmScreenState extends State<CrmScreen>
                       ),
                     ),
                   ],
+                  if (crmStage == stageLost && deal.adjournedReason != null && deal.adjournedReason!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cancel_outlined, size: 11, color: Color(0xFFF87171)),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Reason: ${deal.adjournedReason}',
+                            style: const TextStyle(
+                              color: Color(0xFFF87171),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -5046,7 +5470,7 @@ class _CrmScreenState extends State<CrmScreen>
                       ),
                     ),
                     const SizedBox(width: 6),
-                    if (crmStage == stageCreated)
+                    if (crmStage == stageCreated || crmStage == stageFollowUp) ...[
                       ElevatedButton.icon(
                         onPressed: () => _showPassLeadDialog(deal),
                         style: ElevatedButton.styleFrom(
@@ -5059,8 +5483,22 @@ class _CrmScreenState extends State<CrmScreen>
                         ),
                         icon: const Icon(Icons.check_circle_outline, size: 13),
                         label: const Text('Pass to Work', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                      )
-                    else if (crmStage == stagePassed)
+                      ),
+                      const SizedBox(width: 6),
+                      OutlinedButton.icon(
+                        onPressed: () => _promptLeadLostReason(deal),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFF87171),
+                          side: BorderSide(color: const Color(0xFFF87171).withValues(alpha: 0.4)),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        icon: const Icon(Icons.cancel_outlined, size: 12),
+                        label: const Text('Lose', style: TextStyle(fontSize: 11)),
+                      ),
+                    ] else if (crmStage == stagePassed)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
@@ -5076,7 +5514,7 @@ class _CrmScreenState extends State<CrmScreen>
                           ],
                         ),
                       )
-                    else if (crmStage == stageLost)
+                    else if (crmStage == stageLost) ...[
                       ElevatedButton.icon(
                         onPressed: () => _reopenLead(deal),
                         style: ElevatedButton.styleFrom(
@@ -5093,6 +5531,21 @@ class _CrmScreenState extends State<CrmScreen>
                         icon: const Icon(Icons.replay_rounded, size: 13),
                         label: const Text('Reopen', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
+                      const SizedBox(width: 6),
+                      OutlinedButton.icon(
+                        onPressed: () => _promptLeadLostReason(deal),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFFF87171),
+                          side: BorderSide(color: const Color(0xFFF87171).withValues(alpha: 0.3)),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        icon: const Icon(Icons.edit_note_rounded, size: 12),
+                        label: const Text('Reason', style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -5168,6 +5621,12 @@ class _CrmScreenState extends State<CrmScreen>
                 _createdDeals.length.toString(),
                 Icons.inbox_rounded,
                 const Color(0xFF38BDF8),
+              ),
+              _analyticsCard(
+                'Follow-ups',
+                _followUpDeals.length.toString(),
+                Icons.event_repeat_rounded,
+                const Color(0xFFF59E0B),
               ),
               _analyticsCard(
                 'Deal Lose',
