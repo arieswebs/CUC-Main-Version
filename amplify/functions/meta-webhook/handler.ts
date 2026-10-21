@@ -313,7 +313,46 @@ async function sendAdminWhatsAppAlert({
     console.log(`Sending WhatsApp alert to ${cleanPhone}...`);
     try {
       const waUrl = `https://graph.facebook.com/${graphVersion}/${waPhoneId}/messages`;
-      const res = await fetch(waUrl, {
+
+      // 1. Send approved utility template (cuc_lead_alert) - Guaranteed 24/7 delivery to all admin numbers without 24h window
+      const templateRes = await fetch(waUrl, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'template',
+          template: {
+            name: 'cuc_lead_alert',
+            language: { code: 'en_US' },
+            components: [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: name || 'New Lead' },
+                  { type: 'text', text: phone || 'N/A' },
+                  { type: 'text', text: city || 'Kerala' },
+                  { type: 'text', text: workType || 'Legal / Business Consulting' },
+                ],
+              },
+            ],
+          },
+        }),
+      });
+
+      const templateBody = await templateRes.text();
+      if (templateRes.ok) {
+        console.log(`✅ Approved template alert delivered to ${cleanPhone}:`, templateBody);
+      } else {
+        console.warn(`Template send returned:`, templateBody);
+      }
+
+      // 2. Also send the full detailed breakdown text
+      await fetch(waUrl, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -330,13 +369,6 @@ async function sendAdminWhatsAppAlert({
           },
         }),
       });
-
-      const resBody = await res.text();
-      if (res.ok) {
-        console.log(`✅ WhatsApp alert delivered to ${cleanPhone}:`, resBody);
-      } else {
-        console.error(`❌ Failed to send WhatsApp alert to ${cleanPhone}:`, resBody);
-      }
     } catch (waErr) {
       console.error(`Error sending WhatsApp to ${cleanPhone}:`, waErr);
     }
