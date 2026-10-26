@@ -4730,9 +4730,14 @@ class _CrmScreenState extends State<CrmScreen>
                       children: [
                         const Icon(Icons.phone_outlined, color: Colors.white38, size: 12),
                         const SizedBox(width: 4),
-                        Text(
-                          deal.contactInfo!,
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 150),
+                          child: Text(
+                            deal.contactInfo!,
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         const SizedBox(width: 6),
                         InkWell(
@@ -4768,9 +4773,14 @@ class _CrmScreenState extends State<CrmScreen>
                       children: [
                         const Icon(Icons.location_on_outlined, color: Colors.white38, size: 12),
                         const SizedBox(width: 4),
-                        Text(
-                          deal.company!,
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 150),
+                          child: Text(
+                            deal.company!,
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
@@ -4793,7 +4803,8 @@ class _CrmScreenState extends State<CrmScreen>
                   children: [
                     Icon(Icons.work_outline_rounded, size: 11, color: AppTheme.primaryColor),
                     const SizedBox(width: 4),
-                    Flexible(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 240),
                       child: Text(
                         deal.workType!,
                         style: TextStyle(
@@ -4825,7 +4836,8 @@ class _CrmScreenState extends State<CrmScreen>
                   children: [
                     const Icon(Icons.campaign_outlined, size: 11, color: Color(0xFF38BDF8)),
                     const SizedBox(width: 4),
-                    Flexible(
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 240),
                       child: Text(
                         cardSource,
                         style: const TextStyle(
