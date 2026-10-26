@@ -31,6 +31,7 @@ class _CrmScreenState extends State<CrmScreen>
   String? _errorMessage;
   late TabController _tabController;
 
+  final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedStage = 'All';
   String _selectedPriority = 'All';
@@ -657,6 +658,7 @@ class _CrmScreenState extends State<CrmScreen>
 
   @override
   void dispose() {
+    _searchController.dispose();
     _tabController.dispose();
     _dealSubscription.cancel();
     _reminderTimer?.cancel();
@@ -718,18 +720,59 @@ class _CrmScreenState extends State<CrmScreen>
     }).toList();
   }
 
+  bool _matchesSearch(Deal deal, String query) {
+    final trimmed = query.trim().toLowerCase();
+    if (trimmed.isEmpty) return true;
+
+    final tokens = trimmed.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+    if (tokens.isEmpty) return true;
+
+    final name = deal.name.toLowerCase();
+    final clientName = deal.clientName?.toLowerCase() ?? '';
+    final company = deal.company?.toLowerCase() ?? '';
+    final workType = deal.workType?.toLowerCase() ?? '';
+    final referredBy = deal.referredBy?.toLowerCase() ?? '';
+    final contactStatus = deal.contactStatus?.toLowerCase() ?? '';
+    final adjournedReason = deal.adjournedReason?.toLowerCase() ?? '';
+    final description = deal.description?.toLowerCase() ?? '';
+    final responsible = deal.responsibleName?.toLowerCase() ?? '';
+    final registerNo = deal.registerNo?.toLowerCase() ?? '';
+    final contact = deal.contactInfo ?? '';
+    final cleanContact = contact.replaceAll(RegExp(r'[^0-9]'), '');
+
+    for (final token in tokens) {
+      bool tokenMatched = false;
+
+      if (name.contains(token) ||
+          clientName.contains(token) ||
+          company.contains(token) ||
+          workType.contains(token) ||
+          referredBy.contains(token) ||
+          contactStatus.contains(token) ||
+          adjournedReason.contains(token) ||
+          description.contains(token) ||
+          responsible.contains(token) ||
+          registerNo.contains(token) ||
+          contact.toLowerCase().contains(token)) {
+        tokenMatched = true;
+      } else {
+        final cleanToken = token.replaceAll(RegExp(r'[^0-9]'), '');
+        if (cleanToken.isNotEmpty && cleanContact.contains(cleanToken)) {
+          tokenMatched = true;
+        }
+      }
+
+      if (!tokenMatched) return false;
+    }
+
+    return true;
+  }
+
   List<Deal> get _filteredDeals {
     return _scopedDeals.where((deal) {
-      final matchesSearch = _searchQuery.isEmpty ||
-          deal.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (deal.clientName?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-          (deal.company?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-          (deal.contactInfo?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-          (deal.workType?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
-
+      final matchesSearch = _matchesSearch(deal, _searchQuery);
       final crmStage = getCrmStage(deal);
       final matchesStage = _selectedStage == 'All' || crmStage == _selectedStage;
-
       final matchesPriority =
           _selectedPriority == 'All' || deal.priority == _selectedPriority;
 
@@ -4336,55 +4379,95 @@ class _CrmScreenState extends State<CrmScreen>
           ),
           const SizedBox(height: 16),
           // Search + filter row
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: TextField(
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: 'Search leads, clients, companies...',
-                      hintStyle: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.35),
-                        fontSize: 14,
-                      ),
-                      prefixIcon: Icon(Icons.search_rounded, color: AppTheme.primaryColor, size: 20),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
-                    onChanged: (v) => setState(() => _searchQuery = v),
+          LayoutBuilder(
+            builder: (ctx, constraints) {
+              final isNarrow = constraints.maxWidth < 750;
+              final searchField = Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _searchQuery.isNotEmpty
+                        ? AppTheme.primaryColor.withValues(alpha: 0.6)
+                        : Colors.white.withValues(alpha: 0.08),
+                    width: _searchQuery.isNotEmpty ? 1.4 : 1.0,
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              _buildDropdown(
-                value: _selectedStage,
-                items: _stages,
-                onChanged: (v) => setState(() => _selectedStage = v!),
-                hint: 'Stage',
-              ),
-              const SizedBox(width: 8),
-              _buildDropdown(
-                value: _selectedPriority,
-                items: _priorities,
-                onChanged: (v) => setState(() => _selectedPriority = v!),
-                hint: 'Priority',
-              ),
-              const SizedBox(width: 8),
-              _buildDropdown(
-                value: _selectedFollowUpFilter,
-                items: _followUpFilters,
-                onChanged: (v) => setState(() => _selectedFollowUpFilter = v!),
-                hint: 'Follow-up',
-              ),
-            ],
+                child: TextField(
+                  controller: _searchController,
+                  textInputAction: TextInputAction.search,
+                  style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                  decoration: InputDecoration(
+                    hintText: 'Search leads by name, phone, place, work type, inquiry, remarks...',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.35),
+                      fontSize: 13,
+                    ),
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryColor, size: 20),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                            tooltip: 'Clear Search',
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _searchQuery = '');
+                            },
+                          )
+                        : null,
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                  ),
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                ),
+              );
+
+              final dropdownRow = Row(
+                mainAxisSize: isNarrow ? MainAxisSize.max : MainAxisSize.min,
+                children: [
+                  _buildDropdown(
+                    value: _selectedStage,
+                    items: _stages,
+                    onChanged: (v) => setState(() => _selectedStage = v!),
+                    hint: 'Stage',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildDropdown(
+                    value: _selectedPriority,
+                    items: _priorities,
+                    onChanged: (v) => setState(() => _selectedPriority = v!),
+                    hint: 'Priority',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildDropdown(
+                    value: _selectedFollowUpFilter,
+                    items: _followUpFilters,
+                    onChanged: (v) => setState(() => _selectedFollowUpFilter = v!),
+                    hint: 'Follow-up',
+                  ),
+                ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    searchField,
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: dropdownRow,
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(child: searchField),
+                  const SizedBox(width: 10),
+                  dropdownRow,
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -4459,17 +4542,13 @@ class _CrmScreenState extends State<CrmScreen>
   }
 
   bool _matchesSearchAndPriority(Deal deal) {
-    final matchesSearch = _searchQuery.isEmpty ||
-        deal.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-        (deal.clientName?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-        (deal.company?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-        (deal.contactInfo?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false) ||
-        (deal.workType?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false);
-
+    final matchesSearch = _matchesSearch(deal, _searchQuery);
     final matchesPriority =
         _selectedPriority == 'All' || deal.priority == _selectedPriority;
+    final crmStage = getCrmStage(deal);
+    final matchesStage = _selectedStage == 'All' || crmStage == _selectedStage;
 
-    return matchesSearch && matchesPriority && _matchesFollowUpFilter(deal);
+    return matchesSearch && matchesPriority && matchesStage && _matchesFollowUpFilter(deal);
   }
 
   Widget _buildTabBar() {
@@ -4512,6 +4591,65 @@ class _CrmScreenState extends State<CrmScreen>
     final passedList = _passedDeals.where(_matchesSearchAndPriority).toList();
     final lostList = _lostDeals.where(_matchesSearchAndPriority).toList();
 
+    final totalMatches = createdList.length + followUpList.length + passedList.length + lostList.length;
+    final hasActiveFilter = _searchQuery.isNotEmpty ||
+        _selectedStage != 'All' ||
+        _selectedPriority != 'All' ||
+        _selectedFollowUpFilter != 'All';
+
+    if (totalMatches == 0 && hasActiveFilter) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.search_off_rounded, color: Colors.white38, size: 44),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _searchQuery.isNotEmpty
+                    ? 'No leads matching "$_searchQuery"'
+                    : 'No leads match current filters',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Try searching by lead name, phone, work type, inquiry details, or remarks.',
+                style: TextStyle(color: Colors.white38, fontSize: 12.5),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() {
+                    _searchQuery = '';
+                    _selectedStage = 'All';
+                    _selectedPriority = 'All';
+                    _selectedFollowUpFilter = 'All';
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.clear_all_rounded, size: 16),
+                label: const Text('Reset Search & Filters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 1350;
@@ -4552,36 +4690,86 @@ class _CrmScreenState extends State<CrmScreen>
           ),
         ];
 
-        if (isWide) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (int i = 0; i < columns.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 16),
-                  Expanded(child: columns[i]),
-                ],
-              ],
-            ),
-          );
-        }
+        final boardContent = isWide
+            ? Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (int i = 0; i < columns.length; i++) ...[
+                      if (i > 0) const SizedBox(width: 16),
+                      Expanded(child: columns[i]),
+                    ],
+                  ],
+                ),
+              )
+            : SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  height: hasActiveFilter ? constraints.maxHeight - 84 : constraints.maxHeight - 32,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (int i = 0; i < columns.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 16),
+                        SizedBox(width: colWidth, child: columns[i]),
+                      ],
+                    ],
+                  ),
+                ),
+              );
 
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.all(16),
-          child: SizedBox(
-            height: constraints.maxHeight - 32,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (int i = 0; i < columns.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 16),
-                  SizedBox(width: colWidth, child: columns[i]),
+        if (!hasActiveFilter) return boardContent;
+
+        return Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.search_rounded, size: 16, color: AppTheme.primaryColor),
+                  const SizedBox(width: 8),
+                  Text(
+                    _searchQuery.isNotEmpty
+                        ? 'Found $totalMatches lead${totalMatches == 1 ? '' : 's'} matching "$_searchQuery"'
+                        : 'Showing $totalMatches filtered lead${totalMatches == 1 ? '' : 's'}',
+                    style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () {
+                      _searchController.clear();
+                      setState(() {
+                        _searchQuery = '';
+                        _selectedStage = 'All';
+                        _selectedPriority = 'All';
+                        _selectedFollowUpFilter = 'All';
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(6),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      child: Row(
+                        children: [
+                          Icon(Icons.close_rounded, size: 14, color: AppTheme.primaryColor),
+                          SizedBox(width: 4),
+                          Text('Clear Filters', style: TextStyle(color: AppTheme.primaryColor, fontSize: 11.5, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
-              ],
+              ),
             ),
-          ),
+            Expanded(child: boardContent),
+          ],
         );
       },
     );
@@ -5360,7 +5548,32 @@ class _CrmScreenState extends State<CrmScreen>
           children: [
             const Icon(Icons.search_off_rounded, color: Colors.white24, size: 48),
             const SizedBox(height: 12),
-            const Text('No leads found', style: TextStyle(color: Colors.white38, fontSize: 16)),
+            Text(
+              _searchQuery.isNotEmpty ? 'No leads found matching "$_searchQuery"' : 'No leads found',
+              style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Try searching with another name, phone number, work type, or inquiry note.',
+              style: TextStyle(color: Colors.white38, fontSize: 13),
+            ),
+            if (_searchQuery.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  _searchController.clear();
+                  setState(() => _searchQuery = '');
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.clear_rounded, size: 16),
+                label: const Text('Clear Search', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
           ],
         ),
       );
