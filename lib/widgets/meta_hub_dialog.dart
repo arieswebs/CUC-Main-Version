@@ -164,7 +164,7 @@ class _MetaHubDialogState extends State<MetaHubDialog> with SingleTickerProvider
 
     setState(() {
       _isSyncingLeads = true;
-      _statusMessage = 'Connecting to Meta Graph API...';
+      _statusMessage = 'Connecting to Meta Graph API & discovering all active forms...';
       _statusColor = AppTheme.primaryColor;
     });
 
@@ -180,7 +180,7 @@ class _MetaHubDialogState extends State<MetaHubDialog> with SingleTickerProvider
       if (mounted) {
         setState(() {
           _isSyncingLeads = false;
-          _statusMessage = 'Sync Complete: Fetched ${leads.length} leads ($ingestedCount new leads added to CRM).';
+          _statusMessage = 'Sync Complete: Fetched ${leads.length} leads across active Meta campaigns ($ingestedCount new leads added to CRM).';
           _statusColor = const Color(0xFF10B981);
         });
         widget.onLeadsImported?.call();
@@ -672,9 +672,9 @@ class _MetaHubDialogState extends State<MetaHubDialog> with SingleTickerProvider
               const SizedBox(width: 12),
               Expanded(
                 child: _buildTextField(
-                  label: 'Lead Form ID (Optional for specific form)',
+                  label: 'Lead Form ID (Blank = Auto-sync all forms)',
                   controller: _formIdCtrl,
-                  hint: 'e.g. 5647382910',
+                  hint: 'Blank = All forms, or e.g. 3632264293615869, 1083035564715146',
                   icon: Icons.assignment_outlined,
                 ),
               ),

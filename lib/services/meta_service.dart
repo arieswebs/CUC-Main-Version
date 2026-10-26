@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -22,7 +23,7 @@ class MetaConfig {
   static const String defaultGraphApiVersion = 'v19.0';
   static const String defaultVerifyToken = 'cuc_meta_verify_token_2026';
   static const String defaultPageId = '900929969768115';
-  static const String defaultFormId = '1083035564715146';
+  static const String defaultFormId = ''; // Blank = Automatically discover & sync all active forms on the Page!
   static const String defaultAccessToken =
       'EAAbAi2KYeXcBS1nCfNqRxa6vM2PDliFwQ0jAIXCqUP9WRF8Oh8gx9AveihGNZCuGxUUcM9xro3x6KiEpirFu4t8iwAOzwZAZAdZCeJgkRnBxbVEOiCKXEfrczDzjktvnOxIG53slI1YBLk2pLiOZCDyZBygmM87ZCEZBeMKMZCd1C35Y7SfW3tfePidDE8qmCiQZDZD';
 
@@ -77,13 +78,20 @@ class MetaConfig {
 
     final configVersion = prefs.getInt('meta_config_version') ?? 0;
     String effectiveToken = defaultAccessToken;
-    if (configVersion >= 3 && savedToken != null && savedToken.trim().isNotEmpty) {
+    if (configVersion >= 4 && savedToken != null && savedToken.trim().isNotEmpty) {
       effectiveToken = savedToken;
     } else {
       // Migrate to new active token
-      await prefs.setInt('meta_config_version', 3);
+      await prefs.setInt('meta_config_version', 4);
       await prefs.setString('meta_access_token', defaultAccessToken);
       effectiveToken = defaultAccessToken;
+    }
+
+    String effectiveFormId = savedFormId?.trim() ?? defaultFormId;
+    // Migrate old hardcoded valuation form '1083035564715146' so it defaults to syncing ALL active forms
+    if (effectiveFormId == '1083035564715146' || configVersion < 4) {
+      effectiveFormId = '';
+      await prefs.setString('meta_form_id', '');
     }
 
     return MetaConfig(
@@ -92,7 +100,7 @@ class MetaConfig {
       graphApiVersion: prefs.getString('meta_api_version') ?? defaultGraphApiVersion,
       accessToken: effectiveToken,
       pageId: (savedPageId != null && savedPageId.trim().isNotEmpty) ? savedPageId : defaultPageId,
-      formId: (savedFormId != null && savedFormId.trim().isNotEmpty) ? savedFormId : defaultFormId,
+      formId: effectiveFormId,
       webhookVerifyToken: prefs.getString('meta_verify_token') ?? defaultVerifyToken,
       whatsappPhoneNumberId: (savedWaPhoneId != null && savedWaPhoneId.trim().isNotEmpty) ? savedWaPhoneId : defaultWhatsAppPhoneId,
       internalOpsWhatsAppPhoneId: savedInternalPhoneId ?? '',
@@ -106,7 +114,7 @@ class MetaConfig {
 
   Future<void> save() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('meta_config_version', 3);
+    await prefs.setInt('meta_config_version', 4);
     await prefs.setString('meta_app_id', appId.trim());
     await prefs.setString('meta_app_secret', appSecret.trim());
     await prefs.setString('meta_api_version', graphApiVersion.trim());
@@ -163,8 +171,15 @@ class MetaLead {
     String? phone;
     String? email;
     String? city;
-    String? workType;
+    String? startingType;
+    String? startingStage;
+    String? propertyType;
+    String? genericWork;
     final Map<String, dynamic> fieldsMap = {};
+
+    final campaignName = json['campaign_name']?.toString();
+    final adName = json['ad_name']?.toString();
+    final formName = json['form_name']?.toString();
 
     final fieldData = json['field_data'];
     if (fieldData is List) {
@@ -187,11 +202,39 @@ class MetaLead {
             email = val;
           } else if (fName.contains('city') || fName.contains('place') || fName.contains('location') || fName.contains('where')) {
             city = val;
-          } else if (fName.contains('property') || fName.contains('value') || fName.contains('service') || fName.contains('work') || fName.contains('inquiry') || fName.contains('requirement') || fName.contains('type')) {
-            workType = 'Property Valuation ($val)';
+          } else if (fName.contains('starting') || fName.contains('restaurant') || fName.contains('hotel')) {
+            startingType = val;
+          } else if (fName.contains('stage')) {
+            startingStage = val.replaceAll('_', ' ');
+          } else if (fName.contains('property') || fName.contains('valuation')) {
+            propertyType = val;
+          } else if (fName.contains('മാറ്റേണ്ടത്') || fName.contains('ഗസറ്റ്')) {
+            genericWork = 'Gazette Name Change ($val)';
+          } else if (fName.contains('service') || fName.contains('requirement') || fName.contains('work') || fName.contains('inquiry') || fName.contains('type')) {
+            genericWork = val;
           }
         }
       }
+    }
+
+    String? workType;
+    if (startingType != null && startingType.isNotEmpty) {
+      final capStarting = startingType[0].toUpperCase() + startingType.substring(1);
+      workType = startingStage != null ? '$capStarting ($startingStage)' : capStarting;
+    } else if (propertyType != null && propertyType.isNotEmpty) {
+      workType = 'Property Valuation ($propertyType)';
+    } else if (genericWork != null && genericWork.isNotEmpty) {
+      workType = genericWork;
+    } else if (campaignName != null && campaignName.toLowerCase().contains('hotel')) {
+      workType = 'Hotel / Restaurant Consulting';
+    } else if (campaignName != null && campaignName.toLowerCase().contains('valuation')) {
+      workType = 'Property Valuation';
+    } else if (campaignName != null && campaignName.toLowerCase().contains('name change')) {
+      workType = 'Gazette Name Change';
+    } else if (formName != null && formName.isNotEmpty) {
+      workType = formName;
+    } else {
+      workType = 'Meta Ad Inquiry';
     }
 
     return MetaLead(
@@ -201,9 +244,9 @@ class MetaLead {
       email: email,
       city: city,
       workType: workType,
-      adName: json['ad_name']?.toString(),
-      campaignName: json['campaign_name']?.toString(),
-      formName: json['form_name']?.toString(),
+      adName: adName,
+      campaignName: campaignName,
+      formName: formName,
       createdTime: createdTime,
       rawFields: fieldsMap,
     );
@@ -214,7 +257,7 @@ class MetaLead {
 class MetaLeadService {
   final DealService _dealService = DealService();
 
-  /// Fetch leads directly from Meta Graph API using Form ID or Page ID
+  /// Fetch leads directly from Meta Graph API across all active forms or specified Form ID(s)
   Future<List<MetaLead>> fetchLeadsFromMeta({MetaConfig? config}) async {
     final cfg = config ?? await MetaConfig.load();
     if (cfg.accessToken.isEmpty) {
@@ -225,21 +268,59 @@ class MetaLeadService {
       throw Exception('Meta Form ID or Facebook Page ID is required to fetch leads.');
     }
 
-    final List<MetaLead> allLeads = [];
+    // 1. Get Page Access Token if Page ID is configured
+    String pageToken = cfg.accessToken;
+    if (cfg.pageId.isNotEmpty) {
+      try {
+        final pageTokenUrl = Uri.parse(
+          'https://graph.facebook.com/${cfg.graphApiVersion}/${cfg.pageId}'
+          '?fields=access_token,name'
+          '&access_token=${Uri.encodeComponent(cfg.accessToken)}',
+        );
+        final pageRes = await http.get(pageTokenUrl);
+        if (pageRes.statusCode == 200) {
+          final pageData = jsonDecode(pageRes.body);
+          if (pageData['access_token'] != null && pageData['access_token'].toString().isNotEmpty) {
+            pageToken = pageData['access_token'].toString();
+            // Automatically ensure the page is subscribed to leadgen Webhooks so any new ad immediately connects
+            try {
+              final subUrl = Uri.parse(
+                'https://graph.facebook.com/${cfg.graphApiVersion}/${cfg.pageId}/subscribed_apps'
+                '?subscribed_fields=leadgen'
+                '&access_token=${Uri.encodeComponent(pageToken)}',
+              );
+              unawaited(http.post(subUrl));
+            } catch (_) {}
+          }
+        }
+      } catch (e) {
+        debugPrint('Could not exchange for Page Access Token: $e');
+      }
+    }
+
+    final Set<String> targetFormIds = {};
+    final Map<String, String> formNames = {};
 
     // Helper to fetch leads for a specific form ID
-    Future<List<MetaLead>> fetchForForm(String formId) async {
+    Future<List<MetaLead>> fetchForForm(String formId, {String? formName}) async {
+      final tokenToUse = pageToken.isNotEmpty ? pageToken : cfg.accessToken;
       final url = Uri.parse(
         'https://graph.facebook.com/${cfg.graphApiVersion}/$formId/leads'
-        '?fields=id,created_time,field_data,ad_name,campaign_name,form_name'
-        '&access_token=${Uri.encodeComponent(cfg.accessToken)}'
+        '?fields=id,created_time,field_data,ad_name,campaign_name'
+        '&access_token=${Uri.encodeComponent(tokenToUse)}'
         '&limit=100',
       );
       final res = await http.get(url);
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final List items = data['data'] ?? [];
-        return items.map((i) => MetaLead.fromGraphApi(i as Map<String, dynamic>)).toList();
+        return items.map((i) {
+          final m = Map<String, dynamic>.from(i as Map);
+          if (formName != null && !m.containsKey('form_name')) {
+            m['form_name'] = formName;
+          }
+          return MetaLead.fromGraphApi(m);
+        }).toList();
       } else {
         final err = jsonDecode(res.body);
         final errMsg = err['error']?['message'] ?? res.body;
@@ -249,62 +330,102 @@ class MetaLeadService {
           await cfg.save();
           final retryUrl = Uri.parse(
             'https://graph.facebook.com/${cfg.graphApiVersion}/$formId/leads'
-            '?fields=id,created_time,field_data,ad_name,campaign_name,form_name'
-            '&access_token=${Uri.encodeComponent(cfg.accessToken)}'
+            '?fields=id,created_time,field_data,ad_name,campaign_name'
+            '&access_token=${Uri.encodeComponent(MetaConfig.defaultAccessToken)}'
             '&limit=100',
           );
           final retryRes = await http.get(retryUrl);
           if (retryRes.statusCode == 200) {
             final data = jsonDecode(retryRes.body);
             final List items = data['data'] ?? [];
-            return items.map((i) => MetaLead.fromGraphApi(i as Map<String, dynamic>)).toList();
+            return items.map((i) {
+              final m = Map<String, dynamic>.from(i as Map);
+              if (formName != null && !m.containsKey('form_name')) {
+                m['form_name'] = formName;
+              }
+              return MetaLead.fromGraphApi(m);
+            }).toList();
           }
         }
-        throw Exception('Meta API Form Error (${res.statusCode}): $errMsg');
+        debugPrint('Meta API Form Error for form $formId (${res.statusCode}): $errMsg');
+        return [];
       }
     }
 
-    try {
-      if (cfg.formId.isNotEmpty) {
-        // Direct Form fetch
-        return await fetchForForm(cfg.formId);
-      }
-
-      // If only Page ID is configured, query the page's leadgen forms first
-      final formsUrl = Uri.parse(
-        'https://graph.facebook.com/${cfg.graphApiVersion}/${cfg.pageId}/leadgen_forms'
-        '?access_token=${Uri.encodeComponent(cfg.accessToken)}'
-        '&limit=50',
-      );
-      final formsRes = await http.get(formsUrl);
-
-      if (formsRes.statusCode == 200) {
-        final formsData = jsonDecode(formsRes.body);
-        final List forms = formsData['data'] ?? [];
-        for (final f in forms) {
-          final fId = f['id']?.toString();
-          if (fId != null && fId.isNotEmpty) {
-            try {
-              final formLeads = await fetchForForm(fId);
-              allLeads.addAll(formLeads);
-            } catch (e) {
-              debugPrint('Error fetching leads for form $fId: $e');
+    // 2. Discover all active forms on Facebook Page
+    if (cfg.pageId.isNotEmpty) {
+      try {
+        final formsUrl = Uri.parse(
+          'https://graph.facebook.com/${cfg.graphApiVersion}/${cfg.pageId}/leadgen_forms'
+          '?fields=id,name,status,leads_count'
+          '&access_token=${Uri.encodeComponent(pageToken)}'
+          '&limit=50',
+        );
+        final formsRes = await http.get(formsUrl);
+        if (formsRes.statusCode == 200) {
+          final formsData = jsonDecode(formsRes.body);
+          final List forms = formsData['data'] ?? [];
+          for (final f in forms) {
+            final fId = f['id']?.toString();
+            final fName = f['name']?.toString() ?? '';
+            final fStatus = f['status']?.toString().toUpperCase();
+            if (fId != null && fId.isNotEmpty && (fStatus == 'ACTIVE' || fStatus == null)) {
+              targetFormIds.add(fId);
+              if (fName.isNotEmpty) formNames[fId] = fName;
             }
           }
         }
-        return allLeads;
+      } catch (e) {
+        debugPrint('Error discovering page forms: $e');
       }
-
-      // Fallback: try querying page directly
-      return await fetchForForm(cfg.pageId);
-    } catch (e) {
-      debugPrint('Error fetching leads from Meta: $e');
-      rethrow;
     }
+
+    // 3. Add explicit form IDs if specified in cfg.formId (comma or space separated)
+    if (cfg.formId.isNotEmpty && cfg.formId.trim().toLowerCase() != 'all') {
+      final explicitIds = cfg.formId
+          .split(RegExp(r'[,;\s]+'))
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty && s.toLowerCase() != 'all');
+      targetFormIds.addAll(explicitIds);
+    }
+
+    // 4. Fallback if no forms found
+    if (targetFormIds.isEmpty) {
+      if (cfg.formId.isNotEmpty) {
+        targetFormIds.add(cfg.formId.trim());
+      } else if (cfg.pageId.isNotEmpty) {
+        targetFormIds.add(cfg.pageId.trim());
+      }
+    }
+
+    // 5. Query all discovered & targeted forms
+    final List<MetaLead> allLeads = [];
+    final Set<String> seenLeadIds = {};
+
+    for (final fId in targetFormIds) {
+      try {
+        final formLeads = await fetchForForm(fId, formName: formNames[fId]);
+        for (final l in formLeads) {
+          if (l.id.isNotEmpty && !seenLeadIds.contains(l.id)) {
+            seenLeadIds.add(l.id);
+            allLeads.add(l);
+          }
+        }
+      } catch (e) {
+        debugPrint('Error fetching leads for form $fId: $e');
+      }
+    }
+
+    allLeads.sort((a, b) => b.createdTime.compareTo(a.createdTime));
+    return allLeads;
   }
 
   /// Ingest a Meta Lead into CUC CRM as a Deal
-  Future<dynamic> ingestLeadToCrm(MetaLead lead, {bool checkDuplicate = true}) async {
+  Future<dynamic> ingestLeadToCrm(
+    MetaLead lead, {
+    bool checkDuplicate = true,
+    bool sendWhatsAppAlert = true,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final ingestedIds = (prefs.getStringList('ingested_meta_lead_ids') ?? []).toSet();
 
@@ -337,6 +458,8 @@ class MetaLeadService {
     String leadSource = 'Meta Lead Ads (Facebook/Instagram)';
     if (lead.campaignName != null && lead.campaignName!.trim().isNotEmpty) {
       leadSource = 'Meta Ads: ${lead.campaignName!.trim()}';
+    } else if (lead.formName != null && lead.formName!.trim().isNotEmpty) {
+      leadSource = 'Meta Ads: ${lead.formName!.trim()}';
     }
 
     final newDeal = Deal(
@@ -363,14 +486,15 @@ class MetaLeadService {
     try {
       NotificationService().showLocalNotification(
         title: '🎯 New Meta Lead Received!',
-        message: '${lead.name} (${lead.phone ?? "No phone"}) from ${lead.city ?? "Meta Ads"}',
+        message: '${lead.name} (${lead.phone ?? "No phone"}) - ${lead.workType ?? "Meta Ads"}',
       );
     } catch (_) {}
 
-    // Automatically send instant WhatsApp notification to Admin (7907675024)
+    // Automatically send instant WhatsApp notification to Admin (only for recent leads or simulation)
     try {
+      final isRecent = DateTime.now().difference(lead.createdTime).inHours.abs() < 4;
       final cfg = await MetaConfig.load();
-      if (cfg.notifyOnNewLead && cfg.notifyAdminPhone.isNotEmpty) {
+      if (sendWhatsAppAlert && isRecent && cfg.notifyOnNewLead && cfg.notifyAdminPhone.isNotEmpty) {
         final alertMsg = StringBuffer();
         alertMsg.writeln('🎯 *New Meta Lead Alert!*');
         alertMsg.writeln('');

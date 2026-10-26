@@ -176,25 +176,40 @@ async function processMetaLead({
 
       if (fieldKey.includes('full_name') || fieldKey === 'name') {
         name = val;
-      } else if (fieldKey.includes('phone')) {
+      } else if (fieldKey.includes('phone') || fieldKey.includes('mobile') || fieldKey.includes('contact')) {
         phone = val;
       } else if (fieldKey.includes('email')) {
         email = val;
-      } else if (fieldKey.includes('city') || fieldKey.includes('location')) {
+      } else if (fieldKey.includes('city') || fieldKey.includes('location') || fieldKey.includes('place') || fieldKey.includes('where')) {
         city = val;
+      } else if (fieldKey.includes('starting') || fieldKey.includes('restaurant') || fieldKey.includes('hotel')) {
+        workType = `Hotel / Restaurant (${val})`;
+        responses.push(`${f.name}: ${val}`);
+      } else if (fieldKey.includes('property') || fieldKey.includes('valuation')) {
+        workType = `Property Valuation (${val})`;
+        responses.push(`${f.name}: ${val}`);
       } else if (fieldKey.includes('service') || fieldKey.includes('work') || fieldKey.includes('requirement')) {
         workType = val;
+        responses.push(`${f.name}: ${val}`);
       } else {
         responses.push(`${f.name}: ${val}`);
       }
     }
   }
 
+  const campaign = leadData.campaign_name || '';
   if (!name) name = 'Meta Ad Lead';
-  if (!workType) workType = 'Meta Lead Ad Inquiry';
+  if (!workType) {
+    if (campaign.toLowerCase().includes('hotel')) {
+      workType = 'Hotel & Restaurant Consulting';
+    } else if (campaign.toLowerCase().includes('valuation')) {
+      workType = 'Property Valuation';
+    } else {
+      workType = 'Meta Lead Ad Inquiry';
+    }
+  }
   if (!city) city = 'Facebook/Instagram';
 
-  const campaign = leadData.campaign_name || '';
   const source = campaign ? `Meta Ads: ${campaign}` : 'Meta Lead Ads (Facebook/Instagram)';
 
   // Build notes string from extra responses or email
@@ -203,12 +218,12 @@ async function processMetaLead({
   if (responses.length > 0) notesBuffer.push(...responses);
   const notes = notesBuffer.join('\n').trim();
 
-  // 3. Save into DynamoDB Deals table (if table name is bound)
+  const dealId = String(Math.floor(Date.now() / 1000));
+  const nowIso = new Date().toISOString();
+
+  // 3A. Save into DynamoDB Deals table (if table name is bound)
   if (dealsTable) {
     try {
-      const dealId = String(Math.floor(Date.now() / 1000));
-      const nowIso = new Date().toISOString();
-
       const newDeal = {
         id: dealId,
         name: name,
@@ -243,6 +258,42 @@ async function processMetaLead({
     }
   } else {
     console.warn('DEALS_TABLE_NAME not set; skipped DynamoDB insert.');
+  }
+
+  // 3B. Mirror to Supabase for disaster recovery & web dashboard visibility
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://bzxtgiqjgfojblezdubd.supabase.co';
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6eHRnaXFqZ2ZvamJsZXpkdWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3OTMxMzIsImV4cCI6MjA4MTM2OTEzMn0.E8IKI5PvnW9WoEX4EcXvcSVk0b74LGrrQhNhFX99Dxo';
+    const dealRecord = {
+      id: dealId,
+      name: name,
+      contact_info: phone,
+      company: city,
+      work_type: workType,
+      stage: 'Created',
+      pipeline: 'CRM',
+      priority: 'High',
+      responsible_id: 2,
+      responsible_name: 'Jesna',
+      amount: 0,
+      currency: 'INR',
+      description: notes,
+      referred_by: source,
+      created_at: nowIso.replace('Z', ''),
+    };
+    await fetch(`${supabaseUrl}/rest/v1/deals`, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(dealRecord)
+    });
+    console.log(`✅ Mirrored Meta Lead #${dealId} to Supabase!`);
+  } catch (sbErr) {
+    console.error('Error mirroring deal to Supabase:', sbErr);
   }
 
   // 4. Send Instant WhatsApp Notification to Admin
