@@ -100,6 +100,17 @@ class _CrmScreenState extends State<CrmScreen>
     'Name (Z-A)',
   ];
 
+  /// Converts any DateTime into Indian Standard Time (IST, UTC+05:30)
+  static DateTime toIst(DateTime dt) {
+    final utc = dt.isUtc ? dt : dt.toUtc();
+    return utc.add(const Duration(hours: 5, minutes: 30));
+  }
+
+  /// Current Indian Standard Time (IST, UTC+05:30)
+  static DateTime get nowIst {
+    return DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+  }
+
   Timer? _reminderTimer;
   Timer? _realtimePollTimer;
   Timer? _metaAutoSyncTimer;
@@ -183,7 +194,7 @@ class _CrmScreenState extends State<CrmScreen>
 
   void _checkLiveFollowUpReminders() {
     if (!mounted) return;
-    final now = DateTime.now();
+    final now = nowIst;
 
     for (final deal in _deals) {
       if (deal.id == null) continue;
@@ -194,7 +205,7 @@ class _CrmScreenState extends State<CrmScreen>
       if (stage != stageCreated && stage != stageFollowUp) continue;
       if (deal.postponedDate == null) continue;
 
-      final fu = deal.postponedDate!;
+      final fu = toIst(deal.postponedDate!);
 
       // 1. Trigger popup 5 minutes before the scheduled follow-up time (or if past trigger time)
       final alertTriggerTime = fu.subtract(const Duration(minutes: 5));
@@ -246,8 +257,8 @@ class _CrmScreenState extends State<CrmScreen>
       await SystemSound.play(SystemSoundType.alert);
     } catch (_) {}
 
-    final now = DateTime.now();
-    final fu = deal.postponedDate;
+    final now = nowIst;
+    final fu = deal.postponedDate != null ? toIst(deal.postponedDate!) : null;
     final isUpcoming = fu != null && fu.isAfter(now);
     final minutesLeft = isUpcoming
         ? (fu.difference(now).inSeconds / 60).ceil()
@@ -257,7 +268,7 @@ class _CrmScreenState extends State<CrmScreen>
         ? '⏰ Follow-up in $minutesLeft min: ${deal.name}'
         : '🚨 Follow-up Due Now: ${deal.name}';
     final notifMessage = fu != null
-        ? 'Scheduled at ${DateFormat('hh:mm a').format(fu)}. Status: ${deal.contactStatus ?? "Pending"}.'
+        ? 'Scheduled at ${DateFormat('hh:mm a').format(fu)} (IST). Status: ${deal.contactStatus ?? "Pending"}.'
         : 'Follow-up is due now.';
 
     // Send local notification for desktop / mobile
@@ -641,12 +652,12 @@ class _CrmScreenState extends State<CrmScreen>
   }
 
   List<Deal> get _dueRemindersNow {
-    final now = DateTime.now();
+    final now = nowIst;
     return _scopedDeals.where((d) {
       final st = getCrmStage(d);
       if (st != stageCreated && st != stageFollowUp) return false;
       if (d.postponedDate == null) return false;
-      return d.postponedDate!.isBefore(now);
+      return toIst(d.postponedDate!).isBefore(now);
     }).toList();
   }
 
@@ -832,9 +843,10 @@ class _CrmScreenState extends State<CrmScreen>
       return d == null;
     }
     if (d == null) return false;
-    final now = DateTime.now();
+    final dIst = toIst(d);
+    final now = nowIst;
     final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(d.year, d.month, d.day);
+    final target = DateTime(dIst.year, dIst.month, dIst.day);
 
     switch (_selectedFollowUpFilter) {
       case 'Due Today':
@@ -849,21 +861,23 @@ class _CrmScreenState extends State<CrmScreen>
   }
 
   List<Deal> get _followUpTodayDeals {
-    final now = DateTime.now();
+    final now = nowIst;
     final today = DateTime(now.year, now.month, now.day);
     return _scopedDeals.where((d) {
       if (d.postponedDate == null) return false;
-      final target = DateTime(d.postponedDate!.year, d.postponedDate!.month, d.postponedDate!.day);
+      final dIst = toIst(d.postponedDate!);
+      final target = DateTime(dIst.year, dIst.month, dIst.day);
       return target.isAtSameMomentAs(today);
     }).toList();
   }
 
   List<Deal> get _overdueDeals {
-    final now = DateTime.now();
+    final now = nowIst;
     final today = DateTime(now.year, now.month, now.day);
     return _scopedDeals.where((d) {
       if (d.postponedDate == null) return false;
-      final target = DateTime(d.postponedDate!.year, d.postponedDate!.month, d.postponedDate!.day);
+      final dIst = toIst(d.postponedDate!);
+      final target = DateTime(dIst.year, dIst.month, dIst.day);
       return target.isBefore(today);
     }).toList();
   }
@@ -1141,32 +1155,33 @@ class _CrmScreenState extends State<CrmScreen>
             final stage = getCrmStage(currentDeal);
             final stageCol = _stageColor(stage);
             final dateStr = currentDeal.createdAt != null
-                ? DateFormat('dd MMM yyyy, hh:mm a').format(currentDeal.createdAt!)
+                ? '${DateFormat('dd MMM yyyy, hh:mm a').format(toIst(currentDeal.createdAt!))} IST'
                 : 'Recent';
 
             // Check follow-up status
             String? followUpBadgeText;
             Color followUpBadgeColor = Colors.grey;
             if (currentDeal.postponedDate != null) {
-              final now = DateTime.now();
+              final now = nowIst;
               final today = DateTime(now.year, now.month, now.day);
+              final fuIst = toIst(currentDeal.postponedDate!);
               final fuDate = DateTime(
-                currentDeal.postponedDate!.year,
-                currentDeal.postponedDate!.month,
-                currentDeal.postponedDate!.day,
+                fuIst.year,
+                fuIst.month,
+                fuIst.day,
               );
               final diff = fuDate.difference(today).inDays;
               if (diff < 0) {
-                followUpBadgeText = 'Overdue by ${-diff}d (${DateFormat('dd MMM').format(currentDeal.postponedDate!)})';
+                followUpBadgeText = 'Overdue by ${-diff}d (${DateFormat('dd MMM').format(fuIst)})';
                 followUpBadgeColor = const Color(0xFFEF4444);
               } else if (diff == 0) {
-                followUpBadgeText = 'Follow-up Due Today';
+                followUpBadgeText = 'Follow-up Due Today (${DateFormat('hh:mm a').format(fuIst)})';
                 followUpBadgeColor = const Color(0xFFF59E0B);
               } else if (diff == 1) {
-                followUpBadgeText = 'Tomorrow (${DateFormat('dd MMM').format(currentDeal.postponedDate!)})';
+                followUpBadgeText = 'Tomorrow (${DateFormat('dd MMM').format(fuIst)})';
                 followUpBadgeColor = const Color(0xFF38BDF8);
               } else {
-                followUpBadgeText = 'In $diff days (${DateFormat('dd MMM').format(currentDeal.postponedDate!)})';
+                followUpBadgeText = 'In $diff days (${DateFormat('dd MMM').format(fuIst)})';
                 followUpBadgeColor = const Color(0xFF60A5FA);
               }
             }
@@ -3034,9 +3049,10 @@ class _CrmScreenState extends State<CrmScreen>
   }
 
   Widget _buildFollowUpBadge(DateTime followUpDate) {
-    final now = DateTime.now();
+    final fuIst = toIst(followUpDate);
+    final now = nowIst;
     final today = DateTime(now.year, now.month, now.day);
-    final target = DateTime(followUpDate.year, followUpDate.month, followUpDate.day);
+    final target = DateTime(fuIst.year, fuIst.month, fuIst.day);
     final isOverdue = target.isBefore(today);
     final isToday = target.isAtSameMomentAs(today);
 
@@ -3047,10 +3063,10 @@ class _CrmScreenState extends State<CrmScreen>
             : const Color(0xFF38BDF8);
 
     final String text = isOverdue
-        ? 'Overdue: ${DateFormat('dd MMM').format(followUpDate)}'
+        ? 'Overdue: ${DateFormat('dd MMM').format(fuIst)}'
         : isToday
             ? 'Follow-up Today'
-            : 'Follow-up: ${DateFormat('dd MMM').format(followUpDate)}';
+            : 'Follow-up: ${DateFormat('dd MMM').format(fuIst)}';
 
     final IconData icon = isOverdue
         ? Icons.error_outline_rounded
@@ -3148,13 +3164,14 @@ class _CrmScreenState extends State<CrmScreen>
 
   Future<Deal?> _showFollowUpDialog(Deal deal) async {
     Deal? savedResult;
-    final now = DateTime.now();
+    final pDateIst = deal.postponedDate != null ? toIst(deal.postponedDate!) : null;
+    final now = nowIst;
     final today = DateTime(now.year, now.month, now.day);
-    DateTime? selectedDate = deal.postponedDate != null
-        ? DateTime(deal.postponedDate!.year, deal.postponedDate!.month, deal.postponedDate!.day)
+    DateTime? selectedDate = pDateIst != null
+        ? DateTime(pDateIst.year, pDateIst.month, pDateIst.day)
         : today;
-    TimeOfDay selectedTime = deal.postponedDate != null
-        ? TimeOfDay(hour: deal.postponedDate!.hour, minute: deal.postponedDate!.minute)
+    TimeOfDay selectedTime = pDateIst != null
+        ? TimeOfDay(hour: pDateIst.hour, minute: pDateIst.minute)
         : TimeOfDay(hour: (now.minute > 30 ? (now.hour + 1) % 24 : now.hour), minute: (now.minute > 30 ? 0 : 30));
     String selectedStatus = deal.contactStatus ?? 'Follow-up Scheduled';
     final noteController = TextEditingController();
@@ -3176,7 +3193,7 @@ class _CrmScreenState extends State<CrmScreen>
       builder: (dialogCtx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            final nowInner = DateTime.now();
+            final nowInner = nowIst;
             final todayInner = DateTime(nowInner.year, nowInner.month, nowInner.day);
 
             DateTime? combinedDateTime;
@@ -3486,7 +3503,7 @@ class _CrmScreenState extends State<CrmScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Reminder set: ${DateFormat('EEE, dd MMM yyyy • hh:mm a').format(combinedDateTime)}',
+                                        'Reminder set: ${DateFormat('EEE, dd MMM yyyy • hh:mm a').format(combinedDateTime)} (IST)',
                                         style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 12.5, fontWeight: FontWeight.bold),
                                       ),
                                       if (relativeTimeStr.isNotEmpty)
@@ -3623,7 +3640,7 @@ class _CrmScreenState extends State<CrmScreen>
                                       final (extractedSource, inqDetails, existingRemarks) = _extractSourceInquiryAndRemarks(deal);
                                       String updatedRemarks = existingRemarks;
                                       if (note.isNotEmpty) {
-                                        final timestamp = DateFormat('dd MMM, hh:mm a').format(DateTime.now());
+                                        final timestamp = DateFormat('dd MMM, hh:mm a').format(nowIst);
                                         final prefix = updatedRemarks.trim().isNotEmpty
                                             ? '$updatedRemarks\n\n'
                                             : '';
@@ -5213,14 +5230,15 @@ class _CrmScreenState extends State<CrmScreen>
     final color = _stageColor(stage);
     final String dateStr;
     if (deal.createdAt != null) {
-      final now = DateTime.now();
-      final isToday = deal.createdAt!.year == now.year &&
-          deal.createdAt!.month == now.month &&
-          deal.createdAt!.day == now.day;
+      final createdIst = toIst(deal.createdAt!);
+      final todayIst = nowIst;
+      final isToday = createdIst.year == todayIst.year &&
+          createdIst.month == todayIst.month &&
+          createdIst.day == todayIst.day;
       if (isToday) {
-        dateStr = 'Today, ${DateFormat('hh:mm a').format(deal.createdAt!)}';
+        dateStr = 'Today, ${DateFormat('hh:mm a').format(createdIst)}';
       } else {
-        dateStr = DateFormat('dd MMM yyyy').format(deal.createdAt!);
+        dateStr = DateFormat('dd MMM yyyy').format(createdIst);
       }
     } else {
       dateStr = 'Recent';
@@ -5987,11 +6005,16 @@ class _CrmScreenState extends State<CrmScreen>
                             const Icon(Icons.calendar_today_rounded, color: Colors.white38, size: 11),
                             const SizedBox(width: 4),
                             Text(
-                              deal.createdAt!.year == DateTime.now().year &&
-                                      deal.createdAt!.month == DateTime.now().month &&
-                                      deal.createdAt!.day == DateTime.now().day
-                                  ? 'Today, ${DateFormat('hh:mm a').format(deal.createdAt!)}'
-                                  : DateFormat('dd MMM yyyy').format(deal.createdAt!),
+                              () {
+                                final createdIst = toIst(deal.createdAt!);
+                                final todayIst = nowIst;
+                                final isToday = createdIst.year == todayIst.year &&
+                                    createdIst.month == todayIst.month &&
+                                    createdIst.day == todayIst.day;
+                                return isToday
+                                    ? 'Today, ${DateFormat('hh:mm a').format(createdIst)}'
+                                    : DateFormat('dd MMM yyyy').format(createdIst);
+                              }(),
                               style: const TextStyle(color: Colors.white54, fontSize: 11.5),
                             ),
                           ],

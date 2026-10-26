@@ -163,9 +163,18 @@ class MetaLead {
   factory MetaLead.fromGraphApi(Map<String, dynamic> json) {
     final id = json['id']?.toString() ?? '';
     final createdTimeStr = json['created_time']?.toString();
-    final createdTime = createdTimeStr != null
-        ? DateTime.tryParse(createdTimeStr) ?? DateTime.now()
-        : DateTime.now();
+    DateTime createdTime;
+    if (createdTimeStr != null) {
+      final parsed = DateTime.tryParse(createdTimeStr);
+      if (parsed != null) {
+        final utc = parsed.isUtc ? parsed : parsed.toUtc();
+        createdTime = utc.add(const Duration(hours: 5, minutes: 30));
+      } else {
+        createdTime = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+      }
+    } else {
+      createdTime = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    }
 
     String name = 'Meta Lead';
     String? phone;
@@ -558,7 +567,10 @@ class MetaLeadService {
         if (lead.campaignName != null && lead.campaignName!.isNotEmpty) {
           alertMsg.writeln('🏷️ *Campaign:* ${lead.campaignName}');
         }
-        alertMsg.writeln('⏰ *Time:* ${DateFormat('dd-MMM-yyyy hh:mm a').format(lead.createdTime)}');
+        final istTime = lead.createdTime.isUtc
+            ? lead.createdTime.add(const Duration(hours: 5, minutes: 30))
+            : lead.createdTime;
+        alertMsg.writeln('⏰ *Time (IST):* ${DateFormat('dd-MMM-yyyy hh:mm a').format(istTime)}');
         alertMsg.writeln('');
         alertMsg.writeln('👉 *Cochin United Consultancy CRM*');
 

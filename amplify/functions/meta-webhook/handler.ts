@@ -375,6 +375,16 @@ async function sendAdminWhatsAppAlert({
     .map((p: string) => p.trim())
     .filter((p: string) => p.length > 0);
 
+  const istTimeStr = new Date().toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
   const lines = [
     '🎯 *New Meta Lead Alert!* (AWS Cloud 24/7)',
     '',
@@ -384,6 +394,7 @@ async function sendAdminWhatsAppAlert({
   if (city) lines.push(`📍 *Location:* ${city}`);
   if (workType) lines.push(`📋 *Requirement:* ${workType}`);
   if (campaign) lines.push(`🏷️ *Campaign:* ${campaign}`);
+  lines.push(`⏰ *Time:* ${istTimeStr} (IST)`);
   if (notes) {
     lines.push('');
     lines.push(`📝 *Responses:*\n${notes}`);
