@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/meta_service.dart';
+import '../services/deal_service.dart';
 import '../theme.dart';
 
 class MetaHubDialog extends StatefulWidget {
@@ -170,10 +171,11 @@ class _MetaHubDialogState extends State<MetaHubDialog> with SingleTickerProvider
 
     try {
       await _saveConfig();
+      final freshDeals = await DealService().getAllDeals();
       final leads = await _leadService.fetchLeadsFromMeta();
       int ingestedCount = 0;
       for (final lead in leads) {
-        final id = await _leadService.ingestLeadToCrm(lead);
+        final id = await _leadService.ingestLeadToCrm(lead, existingDeals: freshDeals);
         if (id != null) ingestedCount++;
       }
 

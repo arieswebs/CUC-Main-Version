@@ -216,7 +216,42 @@ async function processMetaLead({
   const notesBuffer: string[] = [];
   if (email) notesBuffer.push(`Email: ${email}`);
   if (responses.length > 0) notesBuffer.push(...responses);
+  if (leadgenId) notesBuffer.push(`Meta Lead ID: ${leadgenId}`);
   const notes = notesBuffer.join('\n').trim();
+
+  // Deduplication check: Check if deal already exists by Meta Lead ID or 10-digit phone number
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://bzxtgiqjgfojblezdubd.supabase.co';
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6eHRnaXFqZ2ZvamJsZXpkdWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3OTMxMzIsImV4cCI6MjA4MTM2OTEzMn0.E8IKI5PvnW9WoEX4EcXvcSVk0b74LGrrQhNhFX99Dxo';
+
+  const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+  const cleanPhone10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+
+  let alreadyExists = false;
+  try {
+    const checkQuery = cleanPhone10
+      ? `or=(register_no.eq.${encodeURIComponent(leadgenId)},contact_info.ilike.*${cleanPhone10}*)`
+      : `register_no=eq.${encodeURIComponent(leadgenId)}`;
+    const checkResp = await fetch(`${supabaseUrl}/rest/v1/deals?select=id,name,contact_info,register_no&${checkQuery}&limit=1`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+      }
+    });
+    if (checkResp.ok) {
+      const existing = (await checkResp.json()) as any[];
+      if (Array.isArray(existing) && existing.length > 0) {
+        alreadyExists = true;
+        console.log(`🛡️ Webhook Deduplication: Meta Lead #${leadgenId} (${name} / ${phone}) already exists (ID: ${existing[0].id}). Skipping duplicate!`);
+      }
+    }
+  } catch (checkErr) {
+    console.warn('Error checking existing deal in Supabase:', checkErr);
+  }
+
+  if (alreadyExists) {
+    console.log(`Duplicate leadgen ${leadgenId} ignored.`);
+    return;
+  }
 
   const dealId = String(Math.floor(Date.now() / 1000));
   const nowIso = new Date().toISOString();
@@ -235,6 +270,8 @@ async function processMetaLead({
         pipeline: 'CRM',
         priority: 'High',
         referred_by: source,
+        register_no: leadgenId,
+        registerNo: leadgenId,
         description: notes,
         amount: 0,
         currency: 'INR',
@@ -262,8 +299,6 @@ async function processMetaLead({
 
   // 3B. Mirror to Supabase for disaster recovery & web dashboard visibility
   try {
-    const supabaseUrl = process.env.SUPABASE_URL || 'https://bzxtgiqjgfojblezdubd.supabase.co';
-    const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6eHRnaXFqZ2ZvamJsZXpkdWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3OTMxMzIsImV4cCI6MjA4MTM2OTEzMn0.E8IKI5PvnW9WoEX4EcXvcSVk0b74LGrrQhNhFX99Dxo';
     const dealRecord = {
       id: dealId,
       name: name,
@@ -279,6 +314,7 @@ async function processMetaLead({
       currency: 'INR',
       description: notes,
       referred_by: source,
+      register_no: leadgenId,
       created_at: nowIso.replace('Z', ''),
     };
     await fetch(`${supabaseUrl}/rest/v1/deals`, {

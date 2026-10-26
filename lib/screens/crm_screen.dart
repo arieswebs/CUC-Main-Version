@@ -146,10 +146,14 @@ class _CrmScreenState extends State<CrmScreen>
     try {
       final cfg = await MetaConfig.load();
       if (cfg.accessToken.isNotEmpty && (cfg.formId.isNotEmpty || cfg.pageId.isNotEmpty)) {
+        final currentDeals = _deals.isNotEmpty ? _deals : await _dealService.getAllDeals();
         final leads = await MetaLeadService().fetchLeadsFromMeta(config: cfg);
         int newLeadsCount = 0;
         for (final lead in leads) {
-          final id = await MetaLeadService().ingestLeadToCrm(lead);
+          final id = await MetaLeadService().ingestLeadToCrm(
+            lead,
+            existingDeals: currentDeals,
+          );
           if (id != null) newLeadsCount++;
         }
         if (newLeadsCount > 0 && mounted) {
@@ -673,8 +677,38 @@ class _CrmScreenState extends State<CrmScreen>
       }).toList();
 
   List<Deal> get _scopedDeals {
-    if (_showAllPipelines) return _deals;
-    return _crmDeals;
+    final base = _showAllPipelines ? _deals : _crmDeals;
+    final groups = <String, List<Deal>>{};
+    for (final d in base) {
+      final phone = (d.contactInfo ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+      final phone10 = phone.length >= 10 ? phone.substring(phone.length - 10) : phone;
+      final name = d.name.trim().toLowerCase();
+      final key = phone10.isNotEmpty
+          ? 'phone_$phone10'
+          : (d.registerNo?.isNotEmpty == true ? 'reg_${d.registerNo}' : 'name_$name');
+      groups.putIfAbsent(key, () => []).add(d);
+    }
+
+    final uniqueList = <Deal>[];
+    for (final list in groups.values) {
+      if (list.length == 1) {
+        uniqueList.add(list.first);
+      } else {
+        list.sort((a, b) {
+          final aStage = getCrmStage(a);
+          final bStage = getCrmStage(b);
+          if (aStage != stageCreated && bStage == stageCreated) return -1;
+          if (bStage != stageCreated && aStage == stageCreated) return 1;
+          if (a.postponedDate != null && b.postponedDate == null) return -1;
+          if (b.postponedDate != null && a.postponedDate == null) return 1;
+          final aDate = a.createdAt?.toIso8601String() ?? '';
+          final bDate = b.createdAt?.toIso8601String() ?? '';
+          return aDate.compareTo(bDate);
+        });
+        uniqueList.add(list.first);
+      }
+    }
+    return uniqueList;
   }
 
   bool _matchesFollowUpFilter(Deal deal) {
@@ -4375,6 +4409,49 @@ class _CrmScreenState extends State<CrmScreen>
                   ),
                 ),
               ),
+              if (_crmDeals.length > _scopedDeals.length) ...[
+                const SizedBox(width: 10),
+                InkWell(
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    final count = await _dealService.cleanDuplicateLeads();
+                    final fresh = await _dealService.getAllDeals();
+                    if (mounted) {
+                      setState(() => _deals = fresh);
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Cleaned $count duplicate leads from database!'),
+                          backgroundColor: const Color(0xFF16A34A),
+                        ),
+                      );
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.6)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cleaning_services_rounded, size: 14, color: Color(0xFFF87171)),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Clean Duplicates (${_crmDeals.length - _scopedDeals.length})',
+                          style: const TextStyle(
+                            color: Color(0xFFF87171),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 16),
