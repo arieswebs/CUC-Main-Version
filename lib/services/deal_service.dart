@@ -129,6 +129,8 @@ class DealService {
     values['id'] = values['id']?.toString() ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
     if (values['responsible_id'] == null) values['responsible_id'] = userId;
     if (values['responsible_name'] == null) values['responsible_name'] = userName;
+    if (values['created_at'] == null) values['created_at'] = DateTime.now().toIso8601String();
+    if (values['updated_at'] == null) values['updated_at'] = DateTime.now().toIso8601String();
 
     if (values['expenses_list'] is List) {
       values['expenses_list'] = jsonEncode(values['expenses_list']);

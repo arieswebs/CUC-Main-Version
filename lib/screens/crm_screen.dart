@@ -89,6 +89,17 @@ class _CrmScreenState extends State<CrmScreen>
     'Pending Set',
   ];
 
+  String _selectedSort = 'Newest First';
+  static const List<String> _sortOptions = [
+    'Newest First',
+    'Oldest First',
+    'Follow-up Date',
+    'Priority',
+    'Highest Value',
+    'Name (A-Z)',
+    'Name (Z-A)',
+  ];
+
   Timer? _reminderTimer;
   Timer? _realtimePollTimer;
   Timer? _metaAutoSyncTimer;
@@ -709,7 +720,109 @@ class _CrmScreenState extends State<CrmScreen>
         uniqueList.add(list.first);
       }
     }
-    return uniqueList;
+    return _sortDeals(uniqueList);
+  }
+
+  List<Deal> _sortDeals(List<Deal> deals) {
+    final list = List<Deal>.from(deals);
+    switch (_selectedSort) {
+      case 'Newest First':
+        list.sort((a, b) {
+          final aDate = a.createdAt;
+          final bDate = b.createdAt;
+          if (aDate != null && bDate != null) {
+            final cmp = bDate.compareTo(aDate);
+            if (cmp != 0) return cmp;
+          } else if (aDate != null) {
+            return -1;
+          } else if (bDate != null) {
+            return 1;
+          }
+          final aId = int.tryParse(a.id?.toString() ?? '') ?? 0;
+          final bId = int.tryParse(b.id?.toString() ?? '') ?? 0;
+          if (aId != 0 && bId != 0) return bId.compareTo(aId);
+          return (b.id?.toString() ?? '').compareTo(a.id?.toString() ?? '');
+        });
+        break;
+
+      case 'Oldest First':
+        list.sort((a, b) {
+          final aDate = a.createdAt;
+          final bDate = b.createdAt;
+          if (aDate != null && bDate != null) {
+            final cmp = aDate.compareTo(bDate);
+            if (cmp != 0) return cmp;
+          } else if (aDate != null) {
+            return -1;
+          } else if (bDate != null) {
+            return 1;
+          }
+          final aId = int.tryParse(a.id?.toString() ?? '') ?? 0;
+          final bId = int.tryParse(b.id?.toString() ?? '') ?? 0;
+          if (aId != 0 && bId != 0) return aId.compareTo(bId);
+          return (a.id?.toString() ?? '').compareTo(b.id?.toString() ?? '');
+        });
+        break;
+
+      case 'Follow-up Date':
+        list.sort((a, b) {
+          final aDate = a.postponedDate;
+          final bDate = b.postponedDate;
+          if (aDate != null && bDate != null) {
+            return aDate.compareTo(bDate);
+          } else if (aDate != null) {
+            return -1;
+          } else if (bDate != null) {
+            return 1;
+          }
+          return 0;
+        });
+        break;
+
+      case 'Priority':
+        const pWeight = {'Urgent': 4, 'High': 3, 'Normal': 2, 'Low': 1};
+        list.sort((a, b) {
+          final aW = pWeight[a.priority] ?? 0;
+          final bW = pWeight[b.priority] ?? 0;
+          final cmp = bW.compareTo(aW);
+          if (cmp != 0) return cmp;
+          final aDate = a.createdAt;
+          final bDate = b.createdAt;
+          if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+          return 0;
+        });
+        break;
+
+      case 'Highest Value':
+        list.sort((a, b) {
+          final cmp = b.amount.compareTo(a.amount);
+          if (cmp != 0) return cmp;
+          final aDate = a.createdAt;
+          final bDate = b.createdAt;
+          if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+          return 0;
+        });
+        break;
+
+      case 'Name (A-Z)':
+        list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        break;
+
+      case 'Name (Z-A)':
+        list.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
+        break;
+
+      default:
+        list.sort((a, b) {
+          final aDate = a.createdAt;
+          final bDate = b.createdAt;
+          if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+          if (aDate != null) return -1;
+          if (bDate != null) return 1;
+          return 0;
+        });
+    }
+    return list;
   }
 
   bool _matchesFollowUpFilter(Deal deal) {
@@ -2097,6 +2210,7 @@ class _CrmScreenState extends State<CrmScreen>
                                     combinedDescription = rem;
                                   }
 
+                                  final now = DateTime.now();
                                   final newLead = Deal(
                                     name: enteredName,
                                     clientName: enteredName,
@@ -2111,6 +2225,8 @@ class _CrmScreenState extends State<CrmScreen>
                                     amount: 0.0,
                                     currency: 'INR',
                                     isWon: false,
+                                    createdAt: now,
+                                    updatedAt: now,
                                   );
 
                                   await _dealService.createDeal(newLead);
@@ -4488,7 +4604,7 @@ class _CrmScreenState extends State<CrmScreen>
           // Search + filter row
           LayoutBuilder(
             builder: (ctx, constraints) {
-              final isNarrow = constraints.maxWidth < 750;
+              final isNarrow = constraints.maxWidth < 950;
               final searchField = Container(
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.05),
@@ -4550,6 +4666,14 @@ class _CrmScreenState extends State<CrmScreen>
                     items: _followUpFilters,
                     onChanged: (v) => setState(() => _selectedFollowUpFilter = v!),
                     hint: 'Follow-up',
+                  ),
+                  const SizedBox(width: 8),
+                  _buildDropdown(
+                    value: _selectedSort,
+                    items: _sortOptions,
+                    onChanged: (v) => setState(() => _selectedSort = v!),
+                    hint: 'Sort By',
+                    prefixIcon: Icons.sort_rounded,
                   ),
                 ],
               );
@@ -4619,31 +4743,41 @@ class _CrmScreenState extends State<CrmScreen>
     required List<String> items,
     required ValueChanged<String?> onChanged,
     required String hint,
+    IconData? prefixIcon,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          items: items
-              .map((s) => DropdownMenuItem(
-                    value: s,
-                    child: Text(
-                      s,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                  ))
-              .toList(),
-          onChanged: onChanged,
-          dropdownColor: const Color(0xFF1A1A24),
-          icon: Icon(Icons.expand_more_rounded, color: Colors.white38, size: 18),
-          style: const TextStyle(color: Colors.white70, fontSize: 13),
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (prefixIcon != null) ...[
+            Icon(prefixIcon, color: AppTheme.primaryColor, size: 15),
+            const SizedBox(width: 5),
+          ],
+          DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              items: items
+                  .map((s) => DropdownMenuItem(
+                        value: s,
+                        child: Text(
+                          s,
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                      ))
+                  .toList(),
+              onChanged: onChanged,
+              dropdownColor: const Color(0xFF1A1A24),
+              icon: const Icon(Icons.expand_more_rounded, color: Colors.white38, size: 18),
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -4740,6 +4874,7 @@ class _CrmScreenState extends State<CrmScreen>
                     _selectedStage = 'All';
                     _selectedPriority = 'All';
                     _selectedFollowUpFilter = 'All';
+                    _selectedSort = 'Newest First';
                   });
                 },
                 style: ElevatedButton.styleFrom(
@@ -5076,9 +5211,20 @@ class _CrmScreenState extends State<CrmScreen>
 
   Widget _buildKanbanCard(Deal deal, String stage, {bool isDragging = false}) {
     final color = _stageColor(stage);
-    final dateStr = deal.createdAt != null
-        ? DateFormat('dd MMM yyyy').format(deal.createdAt!)
-        : 'Recent';
+    final String dateStr;
+    if (deal.createdAt != null) {
+      final now = DateTime.now();
+      final isToday = deal.createdAt!.year == now.year &&
+          deal.createdAt!.month == now.month &&
+          deal.createdAt!.day == now.day;
+      if (isToday) {
+        dateStr = 'Today, ${DateFormat('hh:mm a').format(deal.createdAt!)}';
+      } else {
+        dateStr = DateFormat('dd MMM yyyy').format(deal.createdAt!);
+      }
+    } else {
+      dateStr = 'Recent';
+    }
     final (cardSource, cardNotes) = _extractSourceAndNotes(deal);
 
     return InkWell(
@@ -5669,7 +5815,13 @@ class _CrmScreenState extends State<CrmScreen>
               ElevatedButton.icon(
                 onPressed: () {
                   _searchController.clear();
-                  setState(() => _searchQuery = '');
+                  setState(() {
+                    _searchQuery = '';
+                    _selectedStage = 'All';
+                    _selectedPriority = 'All';
+                    _selectedFollowUpFilter = 'All';
+                    _selectedSort = 'Newest First';
+                  });
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryColor,
@@ -5825,6 +5977,22 @@ class _CrmScreenState extends State<CrmScreen>
                             Text(
                               deal.workType!,
                               style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      if (deal.createdAt != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.calendar_today_rounded, color: Colors.white38, size: 11),
+                            const SizedBox(width: 4),
+                            Text(
+                              deal.createdAt!.year == DateTime.now().year &&
+                                      deal.createdAt!.month == DateTime.now().month &&
+                                      deal.createdAt!.day == DateTime.now().day
+                                  ? 'Today, ${DateFormat('hh:mm a').format(deal.createdAt!)}'
+                                  : DateFormat('dd MMM yyyy').format(deal.createdAt!),
+                              style: const TextStyle(color: Colors.white54, fontSize: 11.5),
                             ),
                           ],
                         ),
