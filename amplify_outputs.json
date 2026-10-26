@@ -1,9 +1,9 @@
 {
   "auth": {
-    "user_pool_id": "ap-south-1_udiXB6uNl",
+    "user_pool_id": "ap-south-1_B6hwTTY9V",
     "aws_region": "ap-south-1",
-    "user_pool_client_id": "58e1404kevsvp12ps4obhmaqn",
-    "identity_pool_id": "ap-south-1:b59c6276-1ee9-4279-8cbf-7c086f68cd68",
+    "user_pool_client_id": "ne0j4s5aeipjj4po8sf2h57o6",
+    "identity_pool_id": "ap-south-1:bfe2bca5-8438-4c13-9b77-51ed504f9127",
     "mfa_methods": [],
     "standard_required_attributes": [
       "email"
@@ -26,7 +26,7 @@
     "unauthenticated_identities_enabled": true
   },
   "data": {
-    "url": "https://tjy7pz7gyfe2jgu6bdkjocghde.appsync-api.ap-south-1.amazonaws.com/graphql",
+    "url": "https://qipvsr4renaa3a7gua6mo7pvge.appsync-api.ap-south-1.amazonaws.com/graphql",
     "aws_region": "ap-south-1",
     "default_authorization_type": "AMAZON_COGNITO_USER_POOLS",
     "authorization_types": [
@@ -4677,11 +4677,11 @@
   },
   "storage": {
     "aws_region": "ap-south-1",
-    "bucket_name": "amplify-legal-admin-sandb-clientfilesbucket5d3f5cb-rfojjunie5xe",
+    "bucket_name": "amplify-d3aqx1amhf34pb-ma-clientfilesbucket5d3f5cb-il4lwz7l1rus",
     "buckets": [
       {
         "name": "clientFiles",
-        "bucket_name": "amplify-legal-admin-sandb-clientfilesbucket5d3f5cb-rfojjunie5xe",
+        "bucket_name": "amplify-d3aqx1amhf34pb-ma-clientfilesbucket5d3f5cb-il4lwz7l1rus",
         "aws_region": "ap-south-1",
         "paths": {
           "public/*": {
@@ -4704,5 +4704,8 @@
       }
     ]
   },
-  "version": "1.4"
+  "version": "1.4",
+  "custom": {
+    "metaWebhookUrl": "https://sef5hsxguvjdi64fm3s7ysschm0aommo.lambda-url.ap-south-1.on.aws/"
+  }
 }
