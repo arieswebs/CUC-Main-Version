@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -4232,226 +4233,255 @@ class _CrmScreenState extends State<CrmScreen>
                   ),
                 ],
               ),
-              const Spacer(),
-              _buildStatBadge('Created', _createdDeals.length.toString(), const Color(0xFF38BDF8)),
-              const SizedBox(width: 8),
-              _buildStatBadge('Follow-ups', _followUpDeals.length.toString(), const Color(0xFFF59E0B)),
-              const SizedBox(width: 8),
-              _buildStatBadge('Passed to Work', _passedDeals.length.toString(), const Color(0xFF4ADE80)),
-              const SizedBox(width: 8),
-              _buildStatBadge('Deal Lose', _lostDeals.length.toString(), const Color(0xFFF87171)),
-              if (_followUpTodayDeals.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedFollowUpFilter = _selectedFollowUpFilter == 'Due Today' ? 'All' : 'Due Today';
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: _buildStatBadge(
-                    'Follow-up Today',
-                    _followUpTodayDeals.length.toString(),
-                    const Color(0xFFF59E0B),
-                    isActive: _selectedFollowUpFilter == 'Due Today',
-                  ),
-                ),
-              ],
-              if (_overdueDeals.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedFollowUpFilter = _selectedFollowUpFilter == 'Overdue' ? 'All' : 'Overdue';
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: _buildStatBadge(
-                    'Overdue',
-                    _overdueDeals.length.toString(),
-                    const Color(0xFFEF4444),
-                    isActive: _selectedFollowUpFilter == 'Overdue',
-                  ),
-                ),
-              ],
-              if (_dueRemindersNow.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                InkWell(
-                  onTap: () {
-                    _triggerLiveReminderPopup(_dueRemindersNow.first);
-                  },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFEF4444)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFEF4444).withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          spreadRadius: 1,
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.notifications_active_rounded, color: Color(0xFFEF4444), size: 14),
-                        const SizedBox(width: 5),
-                        Text(
-                          '${_dueRemindersNow.length} Due Now',
-                          style: const TextStyle(
-                            color: Color(0xFFEF4444),
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
+              const SizedBox(width: 16),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return ScrollConfiguration(
+                      behavior: ScrollConfiguration.of(context).copyWith(
+                        dragDevices: {
+                          PointerDeviceKind.touch,
+                          PointerDeviceKind.mouse,
+                          PointerDeviceKind.trackpad,
+                          PointerDeviceKind.stylus,
+                        },
+                      ),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildStatBadge('Created', _createdDeals.length.toString(), const Color(0xFF38BDF8)),
+                              const SizedBox(width: 8),
+                              _buildStatBadge('Follow-ups', _followUpDeals.length.toString(), const Color(0xFFF59E0B)),
+                              const SizedBox(width: 8),
+                              _buildStatBadge('Passed to Work', _passedDeals.length.toString(), const Color(0xFF4ADE80)),
+                              const SizedBox(width: 8),
+                              _buildStatBadge('Deal Lose', _lostDeals.length.toString(), const Color(0xFFF87171)),
+                              if (_followUpTodayDeals.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedFollowUpFilter = _selectedFollowUpFilter == 'Due Today' ? 'All' : 'Due Today';
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: _buildStatBadge(
+                                    'Follow-up Today',
+                                    _followUpTodayDeals.length.toString(),
+                                    const Color(0xFFF59E0B),
+                                    isActive: _selectedFollowUpFilter == 'Due Today',
+                                  ),
+                                ),
+                              ],
+                              if (_overdueDeals.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedFollowUpFilter = _selectedFollowUpFilter == 'Overdue' ? 'All' : 'Overdue';
+                                    });
+                                  },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: _buildStatBadge(
+                                    'Overdue',
+                                    _overdueDeals.length.toString(),
+                                    const Color(0xFFEF4444),
+                                    isActive: _selectedFollowUpFilter == 'Overdue',
+                                  ),
+                                ),
+                              ],
+                              if (_dueRemindersNow.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                InkWell(
+                                  onTap: () {
+                                    _triggerLiveReminderPopup(_dueRemindersNow.first);
+                                  },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: const Color(0xFFEF4444)),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.notifications_active_rounded, color: Color(0xFFEF4444), size: 14),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          '${_dueRemindersNow.length} Due Now',
+                                          style: const TextStyle(
+                                            color: Color(0xFFEF4444),
+                                            fontSize: 11.5,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              if (CrmDataImporter.getPending(_deals).isNotEmpty) ...[
+                                const SizedBox(width: 10),
+                                ElevatedButton.icon(
+                                  onPressed: _showImportSheetDialog,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFEAB308),
+                                    foregroundColor: Colors.black,
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    minimumSize: Size.zero,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  ),
+                                  icon: const Icon(Icons.download_rounded, size: 14, color: Colors.black),
+                                  label: Text(
+                                    'Import Sheet (${CrmDataImporter.getPending(_deals).length})',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(width: 10),
+                              InkWell(
+                                onTap: () {
+                                  MetaHubDialog.show(context, onLeadsImported: () {
+                                    _subscribeToDeals();
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF0064E0), Color(0xFF25D366)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(20),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF0064E0).withValues(alpha: 0.35),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.all_inclusive_rounded, size: 14, color: Colors.white),
+                                      SizedBox(width: 6),
+                                      Text(
+                                        'Meta & WhatsApp Hub',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              InkWell(
+                                onTap: () {
+                                  setState(() => _showAllPipelines = !_showAllPipelines);
+                                },
+                                borderRadius: BorderRadius.circular(20),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: _showAllPipelines
+                                        ? AppTheme.primaryColor.withValues(alpha: 0.2)
+                                        : Colors.white.withValues(alpha: 0.05),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: _showAllPipelines ? AppTheme.primaryColor : Colors.white.withValues(alpha: 0.15),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _showAllPipelines ? Icons.layers_rounded : Icons.filter_alt_outlined,
+                                        size: 14,
+                                        color: _showAllPipelines ? AppTheme.primaryColor : Colors.white70,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        _showAllPipelines ? 'All Pipelines' : 'CRM Only',
+                                        style: TextStyle(
+                                          color: _showAllPipelines ? AppTheme.primaryColor : Colors.white70,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              if (_crmDeals.length > _scopedDeals.length) ...[
+                                const SizedBox(width: 10),
+                                InkWell(
+                                  onTap: () async {
+                                    final messenger = ScaffoldMessenger.of(context);
+                                    final count = await _dealService.cleanDuplicateLeads();
+                                    final fresh = await _dealService.getAllDeals();
+                                    if (mounted) {
+                                      setState(() => _deals = fresh);
+                                      messenger.showSnackBar(
+                                        SnackBar(
+                                          content: Text('Cleaned $count duplicate leads from database!'),
+                                          backgroundColor: const Color(0xFF16A34A),
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(20),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.6)),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.cleaning_services_rounded, size: 14, color: Color(0xFFF87171)),
+                                        const SizedBox(width: 5),
+                                        Text(
+                                          'Clean Duplicates (${_crmDeals.length - _scopedDeals.length})',
+                                          style: const TextStyle(
+                                            color: Color(0xFFF87171),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-              if (CrmDataImporter.getPending(_deals).isNotEmpty) ...[
-                const SizedBox(width: 10),
-                ElevatedButton.icon(
-                  onPressed: _showImportSheetDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEAB308),
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    minimumSize: Size.zero,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  icon: const Icon(Icons.download_rounded, size: 14, color: Colors.black),
-                  label: Text(
-                    'Import Sheet (${CrmDataImporter.getPending(_deals).length})',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black),
-                  ),
-                ),
-              ],
-              const SizedBox(width: 10),
-              InkWell(
-                onTap: () {
-                  MetaHubDialog.show(context, onLeadsImported: () {
-                    _subscribeToDeals();
-                  });
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF0064E0), Color(0xFF25D366)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF0064E0).withValues(alpha: 0.35),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
                       ),
-                    ],
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.all_inclusive_rounded, size: 14, color: Colors.white),
-                      SizedBox(width: 6),
-                      Text(
-                        'Meta & WhatsApp Hub',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              InkWell(
-                onTap: () {
-                  setState(() => _showAllPipelines = !_showAllPipelines);
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _showAllPipelines
-                        ? AppTheme.primaryColor.withValues(alpha: 0.2)
-                        : Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _showAllPipelines ? AppTheme.primaryColor : Colors.white.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _showAllPipelines ? Icons.layers_rounded : Icons.filter_alt_outlined,
-                        size: 14,
-                        color: _showAllPipelines ? AppTheme.primaryColor : Colors.white70,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        _showAllPipelines ? 'All Pipelines' : 'CRM Only',
-                        style: TextStyle(
-                          color: _showAllPipelines ? AppTheme.primaryColor : Colors.white70,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              if (_crmDeals.length > _scopedDeals.length) ...[
-                const SizedBox(width: 10),
-                InkWell(
-                  onTap: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    final count = await _dealService.cleanDuplicateLeads();
-                    final fresh = await _dealService.getAllDeals();
-                    if (mounted) {
-                      setState(() => _deals = fresh);
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text('Cleaned $count duplicate leads from database!'),
-                          backgroundColor: const Color(0xFF16A34A),
-                        ),
-                      );
-                    }
+                    );
                   },
-                  borderRadius: BorderRadius.circular(20),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.6)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.cleaning_services_rounded, size: 14, color: Color(0xFFF87171)),
-                        const SizedBox(width: 5),
-                        Text(
-                          'Clean Duplicates (${_crmDeals.length - _scopedDeals.length})',
-                          style: const TextStyle(
-                            color: Color(0xFFF87171),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
-              ],
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -4553,7 +4583,7 @@ class _CrmScreenState extends State<CrmScreen>
 
   Widget _buildStatBadge(String label, String value, Color color, {bool isActive = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
       decoration: BoxDecoration(
         color: isActive ? color.withValues(alpha: 0.25) : color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
@@ -4575,7 +4605,7 @@ class _CrmScreenState extends State<CrmScreen>
             '$label: $value',
             style: TextStyle(
               color: color,
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.bold,
             ),
           ),
