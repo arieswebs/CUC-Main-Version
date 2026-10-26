@@ -785,13 +785,14 @@ class _CrmScreenState extends State<CrmScreen>
     }
   }
 
-  (String, String) _extractSourceAndNotes(Deal deal) {
+  (String, String, String) _extractSourceInquiryAndRemarks(Deal deal) {
     String source = deal.referredBy?.trim() ?? '';
     String rawDesc = deal.description?.trim() ?? '';
 
     // Check if description has legacy or embedded Meta/ad source block
-    if (rawDesc.contains('[Source:') || rawDesc.contains('🎯 [Source:')) {
-      final lines = rawDesc.split('\n');
+    String cleanDesc = rawDesc;
+    if (cleanDesc.contains('[Source:') || cleanDesc.contains('🎯 [Source:')) {
+      final lines = cleanDesc.split('\n');
       final cleanNotesLines = <String>[];
       String? foundSource;
       String? foundCampaign;
@@ -834,10 +835,83 @@ class _CrmScreenState extends State<CrmScreen>
         }
       }
 
-      return (source, cleanNotesLines.join('\n').trim());
+      cleanDesc = cleanNotesLines.join('\n').trim();
     }
 
-    return (source, rawDesc);
+    String inq = '';
+    String rem = '';
+
+    // Check for explicit dividers
+    final hasInquiryHeader = cleanDesc.contains('--- Inquiry Details ---') || cleanDesc.contains('[Inquiry Details]');
+    final hasRemarksHeader = cleanDesc.contains('--- Remarks ---') || cleanDesc.contains('[Remarks]');
+
+    if (hasInquiryHeader || hasRemarksHeader) {
+      String remaining = cleanDesc;
+      if (hasInquiryHeader) {
+        final parts = remaining.split(RegExp(r'(?:---\s*Inquiry Details\s*---|\[Inquiry Details\])'));
+        if (parts.length > 1) {
+          remaining = parts[1].trim();
+        }
+      }
+      if (remaining.contains('--- Remarks ---') || remaining.contains('[Remarks]')) {
+        final remParts = remaining.split(RegExp(r'(?:---\s*Remarks\s*---|\[Remarks\])'));
+        inq = remParts[0].trim();
+        if (remParts.length > 1) {
+          rem = remParts[1].trim();
+        }
+      } else {
+        inq = remaining.trim();
+      }
+    } else {
+      // Smart auto-separation for existing leads / Meta form responses
+      final lines = cleanDesc.split('\n');
+      final inqLines = <String>[];
+      final remLines = <String>[];
+
+      for (final rawLine in lines) {
+        final line = rawLine.trim();
+        if (line.isEmpty) continue;
+
+        final isFollowUpLine = RegExp(r'^\[\s*\d{1,2}\s+[A-Za-z]+.*-\s*Follow-up\]').hasMatch(line);
+        final isRemarkPrefix = line.toLowerCase().startsWith('remark:') || line.toLowerCase().startsWith('remarks:');
+
+        final isInquiryField = (line.contains('?:') ||
+            line.contains('? :') ||
+            line.toLowerCase().startsWith('email:') ||
+            line.toLowerCase().startsWith('what_') ||
+            line.toLowerCase().startsWith('which_') ||
+            line.toLowerCase().startsWith('where_') ||
+            line.toLowerCase().startsWith('service:') ||
+            line.toLowerCase().startsWith('service needed:') ||
+            line.toLowerCase().startsWith('property_') ||
+            line.contains('നിങ്ങൾക്ക്'));
+
+        if (isFollowUpLine || isRemarkPrefix) {
+          remLines.add(rawLine);
+        } else if (isInquiryField) {
+          inqLines.add(rawLine);
+        } else {
+          if (inqLines.isNotEmpty) {
+            remLines.add(rawLine);
+          } else {
+            inqLines.add(rawLine);
+          }
+        }
+      }
+
+      inq = inqLines.join('\n').trim();
+      rem = remLines.join('\n').trim();
+    }
+
+    return (source, inq, rem);
+  }
+
+  (String, String) _extractSourceAndNotes(Deal deal) {
+    final (source, inq, rem) = _extractSourceInquiryAndRemarks(deal);
+    if (inq.isNotEmpty && rem.isNotEmpty) {
+      return (source, '$inq\n\n$rem');
+    }
+    return (source, inq.isNotEmpty ? inq : rem);
   }
 
   void _openDeal(Deal deal) {
@@ -855,13 +929,14 @@ class _CrmScreenState extends State<CrmScreen>
 
   Future<void> _showLeadDetailsDialog(Deal initialDeal) async {
     Deal currentDeal = initialDeal;
-    final (extractedSource, cleanNotes) = _extractSourceAndNotes(currentDeal);
+    final (extractedSource, inqDetails, initialRemarks) = _extractSourceInquiryAndRemarks(currentDeal);
     final nameController = TextEditingController(text: currentDeal.name);
     final phoneController = TextEditingController(text: currentDeal.contactInfo ?? '');
     final placeController = TextEditingController(text: currentDeal.company ?? '');
     final workTypeController = TextEditingController(text: currentDeal.workType ?? '');
     final sourceController = TextEditingController(text: extractedSource);
-    final notesController = TextEditingController(text: cleanNotes);
+    final inquiryController = TextEditingController(text: inqDetails);
+    final remarksController = TextEditingController(text: initialRemarks);
     String selectedPriority = currentDeal.priority.isNotEmpty ? currentDeal.priority : 'Normal';
     final formKey = GlobalKey<FormState>();
     bool isSaving = false;
@@ -1201,11 +1276,12 @@ class _CrmScreenState extends State<CrmScreen>
                                         if (updatedAfterFollowUp != null) {
                                           setDialogState(() {
                                             currentDeal = updatedAfterFollowUp;
-                                            final (src, nts) = _extractSourceAndNotes(updatedAfterFollowUp);
+                                            final (src, inq, rem) = _extractSourceInquiryAndRemarks(updatedAfterFollowUp);
                                             if (sourceController.text.trim().isEmpty) {
                                               sourceController.text = src;
                                             }
-                                            notesController.text = nts;
+                                            inquiryController.text = inq;
+                                            remarksController.text = rem;
                                           });
                                         }
                                       },
@@ -1441,14 +1517,29 @@ class _CrmScreenState extends State<CrmScreen>
                               ),
                               const SizedBox(height: 14),
 
-                              // Notes / Inquiry Discussion
+                              // 1. Inquiry Details (Multi-line)
                               _buildLeadDialogField(
-                                controller: notesController,
-                                label: 'Notes / Inquiry Discussion',
+                                controller: inquiryController,
+                                label: 'Inquiry Details',
                                 isRequired: false,
-                                hint: 'Details discussed with client, checklist, quotation sent, etc.',
-                                icon: Icons.notes_rounded,
-                                maxLines: 3,
+                                hint: 'Client requirements, questions, Meta ad form responses...',
+                                icon: Icons.question_answer_outlined,
+                                keyboardType: TextInputType.multiline,
+                                minLines: 2,
+                                maxLines: 5,
+                              ),
+                              const SizedBox(height: 14),
+
+                              // 2. Remarks (Multi-line)
+                              _buildLeadDialogField(
+                                controller: remarksController,
+                                label: 'Remarks',
+                                isRequired: false,
+                                hint: 'Staff discussion notes, follow-up remarks, callback summary...',
+                                icon: Icons.rate_review_outlined,
+                                keyboardType: TextInputType.multiline,
+                                minLines: 2,
+                                maxLines: 5,
                               ),
                             ],
                           ),
@@ -1577,6 +1668,17 @@ class _CrmScreenState extends State<CrmScreen>
                                         setDialogState(() => isSaving = true);
                                         final messenger = ScaffoldMessenger.of(context);
                                         try {
+                                          final inq = inquiryController.text.trim();
+                                          final rem = remarksController.text.trim();
+                                          final String combinedDescription;
+                                          if (inq.isNotEmpty && rem.isNotEmpty) {
+                                            combinedDescription = '--- Inquiry Details ---\n$inq\n\n--- Remarks ---\n$rem';
+                                          } else if (inq.isNotEmpty) {
+                                            combinedDescription = inq;
+                                          } else {
+                                            combinedDescription = rem;
+                                          }
+
                                           final updated = currentDeal.copyWith(
                                             name: nameController.text.trim(),
                                             clientName: nameController.text.trim(),
@@ -1584,7 +1686,7 @@ class _CrmScreenState extends State<CrmScreen>
                                             company: placeController.text.trim(),
                                             workType: workTypeController.text.trim(),
                                             referredBy: sourceController.text.trim(),
-                                            description: notesController.text.trim(),
+                                            description: combinedDescription,
                                             priority: selectedPriority,
                                             postponedDate: currentDeal.postponedDate,
                                             contactStatus: currentDeal.contactStatus,
@@ -1666,7 +1768,8 @@ class _CrmScreenState extends State<CrmScreen>
     final placeController = TextEditingController();
     final workTypeController = TextEditingController();
     final sourceController = TextEditingController();
-    final notesController = TextEditingController();
+    final inquiryController = TextEditingController();
+    final remarksController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isSaving = false;
 
@@ -1856,13 +1959,27 @@ class _CrmScreenState extends State<CrmScreen>
                         ),
                         const SizedBox(height: 16),
 
-                        // 6. Notes
+                        // 6. Inquiry Details (Multi-line)
                         _buildLeadDialogField(
-                          controller: notesController,
-                          label: 'Notes',
-                          hint: 'Inquiry details, client requirements, or remarks...',
-                          icon: Icons.description_rounded,
-                          maxLines: 3,
+                          controller: inquiryController,
+                          label: 'Inquiry Details',
+                          hint: 'Client requirements, questions, or service details...',
+                          icon: Icons.question_answer_outlined,
+                          keyboardType: TextInputType.multiline,
+                          minLines: 2,
+                          maxLines: 4,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 7. Remarks (Multi-line)
+                        _buildLeadDialogField(
+                          controller: remarksController,
+                          label: 'Remarks',
+                          hint: 'Discussion notes, callback instructions, or remarks...',
+                          icon: Icons.rate_review_outlined,
+                          keyboardType: TextInputType.multiline,
+                          minLines: 2,
+                          maxLines: 4,
                         ),
                         const SizedBox(height: 26),
 
@@ -1891,6 +2008,17 @@ class _CrmScreenState extends State<CrmScreen>
                                   final enteredWorkType = workTypeController.text.trim().isNotEmpty
                                       ? workTypeController.text.trim()
                                       : 'General Work';
+                                  final inq = inquiryController.text.trim();
+                                  final rem = remarksController.text.trim();
+                                  final String combinedDescription;
+                                  if (inq.isNotEmpty && rem.isNotEmpty) {
+                                    combinedDescription = '--- Inquiry Details ---\n$inq\n\n--- Remarks ---\n$rem';
+                                  } else if (inq.isNotEmpty) {
+                                    combinedDescription = inq;
+                                  } else {
+                                    combinedDescription = rem;
+                                  }
+
                                   final newLead = Deal(
                                     name: enteredName,
                                     clientName: enteredName,
@@ -1898,7 +2026,7 @@ class _CrmScreenState extends State<CrmScreen>
                                     company: placeController.text.trim(),
                                     workType: enteredWorkType,
                                     referredBy: sourceController.text.trim(),
-                                    description: notesController.text.trim(),
+                                    description: combinedDescription,
                                     pipeline: 'CRM',
                                     stage: stageCreated,
                                     priority: 'Normal',
@@ -1970,6 +2098,7 @@ class _CrmScreenState extends State<CrmScreen>
     bool isRequired = false,
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
+    int? minLines,
     String? Function(String?)? validator,
   }) {
     return Column(
@@ -2002,6 +2131,7 @@ class _CrmScreenState extends State<CrmScreen>
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          minLines: minLines,
           validator: validator,
           style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
@@ -3296,14 +3426,23 @@ class _CrmScreenState extends State<CrmScreen>
                                   : () async {
                                       setDialogState(() => isSaving = true);
                                       final note = noteController.text.trim();
-                                      final (extractedSource, cleanNotes) = _extractSourceAndNotes(deal);
-                                      String? updatedDescription = cleanNotes.isNotEmpty ? cleanNotes : null;
+                                      final (extractedSource, inqDetails, existingRemarks) = _extractSourceInquiryAndRemarks(deal);
+                                      String updatedRemarks = existingRemarks;
                                       if (note.isNotEmpty) {
                                         final timestamp = DateFormat('dd MMM, hh:mm a').format(DateTime.now());
-                                        final prefix = updatedDescription?.trim().isNotEmpty == true
-                                            ? '$updatedDescription\n\n'
+                                        final prefix = updatedRemarks.trim().isNotEmpty
+                                            ? '$updatedRemarks\n\n'
                                             : '';
-                                        updatedDescription = '$prefix[$timestamp - Follow-up] $note';
+                                        updatedRemarks = '$prefix[$timestamp - Follow-up] $note';
+                                      }
+
+                                      final String finalDesc;
+                                      if (inqDetails.isNotEmpty && updatedRemarks.isNotEmpty) {
+                                        finalDesc = '--- Inquiry Details ---\n$inqDetails\n\n--- Remarks ---\n$updatedRemarks';
+                                      } else if (inqDetails.isNotEmpty) {
+                                        finalDesc = inqDetails;
+                                      } else {
+                                        finalDesc = updatedRemarks;
                                       }
 
                                       final updated = deal.copyWith(
@@ -3312,7 +3451,7 @@ class _CrmScreenState extends State<CrmScreen>
                                             : (extractedSource.isNotEmpty ? extractedSource : null),
                                         postponedDate: combinedDateTime,
                                         contactStatus: selectedStatus,
-                                        description: updatedDescription,
+                                        description: finalDesc.isNotEmpty ? finalDesc : null,
                                       );
 
                                       // Re-arm reminder so it triggers automatically live
@@ -4854,7 +4993,7 @@ class _CrmScreenState extends State<CrmScreen>
               ),
             ],
 
-            // Notes / Description
+            // Notes / Inquiry / Remarks
             if (cardNotes.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(
