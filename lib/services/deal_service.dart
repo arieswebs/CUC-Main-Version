@@ -645,4 +645,56 @@ class DealService {
       return [];
     }
   }
+
+  /// Remove duplicate CRM leads by matching 10-digit phone number or Meta Lead ID
+  Future<int> cleanDuplicateLeads() async {
+    try {
+      final all = await getAllDeals();
+      final crmDeals = all.where((d) {
+        final p = d.pipeline.toLowerCase();
+        return p == 'crm' || p == 'lead';
+      }).toList();
+
+      final groups = <String, List<old.Deal>>{};
+      for (final d in crmDeals) {
+        final phone = (d.contactInfo ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+        final phone10 = phone.length >= 10 ? phone.substring(phone.length - 10) : phone;
+        final name = d.name.trim().toLowerCase();
+        final key = phone10.isNotEmpty
+            ? phone10
+            : (d.registerNo?.isNotEmpty == true ? d.registerNo! : name);
+        groups.putIfAbsent(key, () => []).add(d);
+      }
+
+      int deletedCount = 0;
+      for (final entry in groups.entries) {
+        final list = entry.value;
+        if (list.length > 1) {
+          list.sort((a, b) {
+            final aStage = a.stage.toLowerCase().trim();
+            final bStage = b.stage.toLowerCase().trim();
+            if (aStage != 'created' && bStage == 'created') return -1;
+            if (bStage != 'created' && aStage == 'created') return 1;
+            if (a.postponedDate != null && b.postponedDate == null) return -1;
+            if (b.postponedDate != null && a.postponedDate == null) return 1;
+            final aDate = a.createdAt?.toIso8601String() ?? '';
+            final bDate = b.createdAt?.toIso8601String() ?? '';
+            return aDate.compareTo(bDate);
+          });
+
+          for (int i = 1; i < list.length; i++) {
+            final toDelete = list[i];
+            if (toDelete.id != null) {
+              await deleteDeal(toDelete.id);
+              deletedCount++;
+            }
+          }
+        }
+      }
+      return deletedCount;
+    } catch (e) {
+      debugPrint('Error cleanDuplicateLeads: $e');
+      return 0;
+    }
+  }
 }

@@ -421,17 +421,62 @@ class MetaLeadService {
   }
 
   /// Ingest a Meta Lead into CUC CRM as a Deal
+  /// Ingest a Meta Lead into CUC CRM as a Deal with database-level deduplication
   Future<dynamic> ingestLeadToCrm(
     MetaLead lead, {
     bool checkDuplicate = true,
     bool sendWhatsAppAlert = true,
+    List<Deal>? existingDeals,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final ingestedIds = (prefs.getStringList('ingested_meta_lead_ids') ?? []).toSet();
 
     if (checkDuplicate && lead.id.isNotEmpty && ingestedIds.contains(lead.id)) {
-      debugPrint('Lead ${lead.id} already ingested into CRM.');
+      debugPrint('Lead ${lead.id} already in local ingested cache.');
       return null;
+    }
+
+    if (checkDuplicate) {
+      final dealsToCheck = existingDeals ?? await _dealService.getAllDeals();
+      final cleanLeadPhone = (lead.phone ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+      final cleanLeadPhone10 = cleanLeadPhone.length >= 10
+          ? cleanLeadPhone.substring(cleanLeadPhone.length - 10)
+          : cleanLeadPhone;
+      final leadNameLower = lead.name.trim().toLowerCase();
+
+      final alreadyInDb = dealsToCheck.any((d) {
+        // 1. Check by Meta Lead ID if present
+        if (lead.id.isNotEmpty) {
+          if (d.registerNo == lead.id) return true;
+          if (d.description?.contains('Meta Lead ID: ${lead.id}') == true) return true;
+        }
+
+        // 2. Check by 10-digit phone number match
+        if (cleanLeadPhone10.isNotEmpty && d.contactInfo != null) {
+          final dPhone = d.contactInfo!.replaceAll(RegExp(r'[^0-9]'), '');
+          final dPhone10 = dPhone.length >= 10 ? dPhone.substring(dPhone.length - 10) : dPhone;
+          if (dPhone10 == cleanLeadPhone10) {
+            final dName = d.name.trim().toLowerCase();
+            // Same 10-digit phone and matching name or both from Meta
+            if (dName == leadNameLower ||
+                dName.contains(leadNameLower) ||
+                leadNameLower.contains(dName) ||
+                (d.referredBy?.toLowerCase().contains('meta') == true)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      });
+
+      if (alreadyInDb) {
+        debugPrint('🛡️ Deduplication: Lead ${lead.id} (${lead.name} / ${lead.phone}) already exists in CRM database. Skipping duplicate creation.');
+        if (lead.id.isNotEmpty) {
+          ingestedIds.add(lead.id);
+          await prefs.setStringList('ingested_meta_lead_ids', ingestedIds.toList());
+        }
+        return null;
+      }
     }
 
     final descriptionBuffer = StringBuffer();
@@ -454,6 +499,9 @@ class MetaLeadService {
         }
       });
     }
+    if (lead.id.isNotEmpty) {
+      descriptionBuffer.writeln('Meta Lead ID: ${lead.id}');
+    }
 
     String leadSource = 'Meta Lead Ads (Facebook/Instagram)';
     if (lead.campaignName != null && lead.campaignName!.trim().isNotEmpty) {
@@ -471,6 +519,7 @@ class MetaLeadService {
       company: lead.city ?? 'Facebook/Instagram',
       workType: lead.workType ?? 'Meta Lead Ad Inquiry',
       referredBy: leadSource,
+      registerNo: lead.id.isNotEmpty ? lead.id : null,
       description: descriptionBuffer.toString().trim(),
       createdAt: lead.createdTime,
     );
