@@ -41,6 +41,7 @@ import '../widgets/startup_task_popup.dart';
 import '../services/auto_backup_service.dart';
 import 'formats_screen.dart';
 import 'attendance_screen.dart';
+import 'crm_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -382,11 +383,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             }
           },
           child: Scaffold(
-            drawer: !isWide ? Drawer(
+            drawer: (!isWide && _selectedIndex != 31) ? Drawer(
               backgroundColor: const Color(0xFF13131A),
               child: _buildSidebarContent(isWide),
             ) : null,
-            appBar: !isWide ? PremiumAppBar(
+            appBar: (!isWide && _selectedIndex != 31) ? PremiumAppBar(
               title: Image.asset('assets/CUnitedGold.png', height: 30),
               centerTitle: true,
             ) : null,
@@ -394,17 +395,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               child: Row(
                 children: [
                 // Admin Sidebar (Desktop Only)
-                if (isWide) _buildSidebar(isWide),
+                if (isWide && _selectedIndex != 31) _buildSidebar(isWide),
                 
                 // Main Content
                 Expanded(
                   child: Container(
-                    padding: EdgeInsets.all(isWide ? 32 : 16),
+                    padding: _selectedIndex == 31 ? EdgeInsets.zero : EdgeInsets.all(isWide ? 32 : 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildHeader(isWide),
-                        SizedBox(height: isWide ? 32 : 16),
+                        if (_selectedIndex != 31) ...[
+                          _buildHeader(isWide),
+                          SizedBox(height: isWide ? 32 : 16),
+                        ],
                         Expanded(
                           child: _isLoading 
                             ? const Center(child: CircularProgressIndicator())
@@ -469,6 +472,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 _sidebarItem(28, Icons.receipt_long_rounded, 'Billing / Invoices', isWide),
                 _sidebarItem(1, Icons.security_rounded, 'Security & Audit', isWide),
                 _sidebarItem(24, Icons.folder_shared_rounded, 'Work File', isWide),
+                _sidebarItem(31, Icons.hub_rounded, 'CRM Leads', isWide),
                 _sidebarItem(25, Icons.contacts_rounded, 'Contact Book', isWide),
                 _sidebarItem(2, Icons.people_outline_rounded, 'Staff Management', isWide),
 
@@ -616,6 +620,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       case 28: return const BillingScreen();
       case 29: return const FormatsScreen();
       case 30: return const AttendanceScreen();
+      case 31: return CrmScreen(onBack: () => setState(() => _selectedIndex = 0));
       default: return _buildPlaceholderView('Coming Soon');
     }
   }
