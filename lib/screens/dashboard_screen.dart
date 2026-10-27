@@ -95,6 +95,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     'billsDetail': 'Checking...',
     'tasksDetail': 'Checking...',
     'pendingChecklists': 0,
+    'crmLeads': 0,
+    'crmLeadsDetail': 'Active leads',
   };
   
   @override
@@ -451,6 +453,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
         pendingChecklistsCount = await ChecklistService().getPendingCountForUser(userId);
       }
 
+      // 7. CRM Leads
+      int crmCount = 0;
+      try {
+        final crmReq = ModelQueries.list(
+          amplify_models.Deals.classType,
+          where: amplify_models.Deals.PIPELINE.eq('CRM')
+              .or(amplify_models.Deals.PIPELINE.eq('crm'))
+              .or(amplify_models.Deals.PIPELINE.eq('lead'))
+              .or(amplify_models.Deals.PIPELINE.eq('Lead')),
+          limit: 10000,
+        );
+        final crmRes = await Amplify.API.query(request: crmReq).response;
+        final crmItems = crmRes.data?.items ?? [];
+        crmCount = crmItems.where((d) => d != null && d.stage != 'Passed to Work' && d.stage != 'Deal Lose' && d.stage != 'Won' && d.is_won != true).length;
+      } catch (e) {
+        debugPrint('CRM count error in dashboard: $e');
+      }
+
       if (!mounted) return;
       setState(() {
         _stats = {
@@ -460,11 +480,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'billsToReceive': totalAmount.toInt(),
           'pendingTasks': pendingTasksCount,
           'pendingChecklists': pendingChecklistsCount,
+          'crmLeads': crmCount,
           'expiringLicencesDetail': '$licCount expiring soon',
           'dscExpiryDetail': '$dscCount renewal pending',
           'activeDealsDetail': '$dealsCount active deals',
           'billsDetail': '${billsItems.length} total invoices',
           'tasksDetail': '$pendingTasksCount tasks due',
+          'crmLeadsDetail': '$crmCount active leads',
         };
         _isLoadingStats = false;
       });
@@ -547,11 +569,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),),
-        drawer: !isWide ? Drawer(
+        drawer: (!isWide && _selectedIndex != 31) ? Drawer(
           backgroundColor: const Color(0xFF13131A),
           child: _buildSidebar(),
         ) : null,
-        appBar: !isWide ? PremiumAppBar(
+        appBar: (!isWide && _selectedIndex != 31) ? PremiumAppBar(
           title: const Text('Cochin United', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
           actions: const [
             NotificationBell(),
@@ -675,6 +697,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   _sidebarItem(11, Icons.account_balance_wallet_rounded, 'Accounting & Pay'),
                   _sidebarItem(2, Icons.receipt_long_rounded, 'Billing'),
                   _sidebarItem(3, Icons.people_alt_rounded, 'Client Data'),
+                  _sidebarItem(31, Icons.hub_rounded, 'CRM', badge: (_stats['crmLeads'] != null && _stats['crmLeads'] > 0) ? _stats['crmLeads'].toString() : null),
                   _sidebarItem(21, Icons.folder_shared_rounded, 'Work File'),
 
                   const Padding(
@@ -978,6 +1001,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap: () {
           setState(() {
             _selectedIndex = 24;
+            _selectedCategory = null;
+          });
+        },
+      ),
+      PremiumStatCard(
+        title: 'CRM Leads',
+        value: (_stats['crmLeads'] != null && _stats['crmLeads'] > 0) ? _stats['crmLeads'].toString() : 'Pipeline',
+        trend: _stats['crmLeadsDetail'] ?? 'Active leads & pipeline',
+        icon: Icons.hub_rounded,
+        color: const Color(0xFF0284C7),
+        isNarrow: isNarrow,
+        onTap: () {
+          setState(() {
+            _selectedIndex = 31;
             _selectedCategory = null;
           });
         },

@@ -37,6 +37,7 @@ class _CrmScreenState extends State<CrmScreen>
   String _selectedStage = 'All';
   String _selectedPriority = 'All';
   String _selectedFollowUpFilter = 'All';
+  String _selectedStaff = 'All Staff';
   bool _showAllPipelines = false;
   bool _isBatchImporting = false;
   String _batchImportStatus = '';
@@ -930,6 +931,23 @@ class _CrmScreenState extends State<CrmScreen>
     return true;
   }
 
+  List<String> get _staffFilterOptions {
+    final staffNames = _deals
+        .map((d) => d.responsibleName?.trim())
+        .where((n) => n != null && n.isNotEmpty)
+        .cast<String>()
+        .toSet()
+        .toList();
+    staffNames.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return ['All Staff', ...staffNames];
+  }
+
+  bool _matchesStaffFilter(Deal deal) {
+    if (_selectedStaff == 'All Staff') return true;
+    final rName = deal.responsibleName?.trim().toLowerCase() ?? '';
+    return rName == _selectedStaff.trim().toLowerCase();
+  }
+
   List<Deal> get _filteredDeals {
     return _scopedDeals.where((deal) {
       final matchesSearch = _matchesSearch(deal, _searchQuery);
@@ -938,7 +956,7 @@ class _CrmScreenState extends State<CrmScreen>
       final matchesPriority =
           _selectedPriority == 'All' || deal.priority == _selectedPriority;
 
-      return matchesSearch && matchesStage && matchesPriority && _matchesFollowUpFilter(deal);
+      return matchesSearch && matchesStage && matchesPriority && _matchesStaffFilter(deal) && _matchesFollowUpFilter(deal);
     }).toList();
   }
 
@@ -1129,7 +1147,16 @@ class _CrmScreenState extends State<CrmScreen>
       MaterialPageRoute(
         builder: (_) => DealDetailScreen(deal: deal, isCrm: true),
       ),
-    );
+    ).then((_) async {
+      try {
+        final fresh = await _dealService.getAllDeals();
+        if (mounted && fresh.isNotEmpty) {
+          setState(() => _deals = fresh);
+        }
+      } catch (e) {
+        debugPrint('Refresh deals error: $e');
+      }
+    });
   }
 
   Future<void> _showLeadDetailsDialog(Deal initialDeal) async {
@@ -1507,6 +1534,49 @@ class _CrmScreenState extends State<CrmScreen>
                                 ),
                               ),
                               const SizedBox(height: 16),
+
+                              if (currentDeal.responsibleName != null && currentDeal.responsibleName!.trim().isNotEmpty) ...[
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 14),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.badge_outlined, color: Color(0xFFA78BFA), size: 18),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'ASSIGNED STAFF',
+                                              style: TextStyle(
+                                                color: Color(0xFFA78BFA),
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              currentDeal.responsibleName!,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
 
                               if (stage == stageLost) ...[
                                 Container(
@@ -4686,6 +4756,14 @@ class _CrmScreenState extends State<CrmScreen>
                   ),
                   const SizedBox(width: 8),
                   _buildDropdown(
+                    value: _staffFilterOptions.contains(_selectedStaff) ? _selectedStaff : 'All Staff',
+                    items: _staffFilterOptions,
+                    onChanged: (v) => setState(() => _selectedStaff = v!),
+                    hint: 'Staff',
+                    prefixIcon: Icons.person_outline_rounded,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildDropdown(
                     value: _selectedSort,
                     items: _sortOptions,
                     onChanged: (v) => setState(() => _selectedSort = v!),
@@ -4806,7 +4884,7 @@ class _CrmScreenState extends State<CrmScreen>
     final crmStage = getCrmStage(deal);
     final matchesStage = _selectedStage == 'All' || crmStage == _selectedStage;
 
-    return matchesSearch && matchesPriority && matchesStage && _matchesFollowUpFilter(deal);
+    return matchesSearch && matchesPriority && matchesStage && _matchesStaffFilter(deal) && _matchesFollowUpFilter(deal);
   }
 
   Widget _buildTabBar() {
@@ -4853,7 +4931,8 @@ class _CrmScreenState extends State<CrmScreen>
     final hasActiveFilter = _searchQuery.isNotEmpty ||
         _selectedStage != 'All' ||
         _selectedPriority != 'All' ||
-        _selectedFollowUpFilter != 'All';
+        _selectedFollowUpFilter != 'All' ||
+        _selectedStaff != 'All Staff';
 
     if (totalMatches == 0 && hasActiveFilter) {
       return Center(
@@ -4891,6 +4970,7 @@ class _CrmScreenState extends State<CrmScreen>
                     _selectedStage = 'All';
                     _selectedPriority = 'All';
                     _selectedFollowUpFilter = 'All';
+                    _selectedStaff = 'All Staff';
                     _selectedSort = 'Newest First';
                   });
                 },
@@ -5419,6 +5499,39 @@ class _CrmScreenState extends State<CrmScreen>
               ),
             ],
 
+            // Assigned Staff Badge
+            if (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.person_pin_rounded, size: 11, color: Color(0xFFA78BFA)),
+                    const SizedBox(width: 4),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 240),
+                      child: Text(
+                        deal.responsibleName!,
+                        style: const TextStyle(
+                          color: Color(0xFFA78BFA),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
             // Lead Source Badge
             if (cardSource.isNotEmpty) ...[
               const SizedBox(height: 6),
@@ -5838,6 +5951,7 @@ class _CrmScreenState extends State<CrmScreen>
                     _selectedStage = 'All';
                     _selectedPriority = 'All';
                     _selectedFollowUpFilter = 'All';
+                    _selectedStaff = 'All Staff';
                     _selectedSort = 'Newest First';
                   });
                 },
@@ -5995,6 +6109,18 @@ class _CrmScreenState extends State<CrmScreen>
                             Text(
                               deal.workType!,
                               style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      if (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.person_pin_rounded, color: Color(0xFFA78BFA), size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              deal.responsibleName!,
+                              style: const TextStyle(color: Color(0xFFA78BFA), fontSize: 11.5, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
