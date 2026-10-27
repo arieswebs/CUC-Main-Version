@@ -297,12 +297,12 @@ class _CrmScreenState extends State<CrmScreen>
                 : 0;
 
             return Dialog(
-              backgroundColor: const Color(0xFF181A2A),
-              elevation: 28,
+              backgroundColor: Colors.white,
+              elevation: 20,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(22),
                 side: BorderSide(
-                  color: isPastDue ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                  color: isPastDue ? const Color(0xFFDC2626) : const Color(0xFFD97706),
                   width: 1.5,
                 ),
               ),
@@ -319,16 +319,16 @@ class _CrmScreenState extends State<CrmScreen>
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: (isPastDue ? const Color(0xFFEF4444) : const Color(0xFFF59E0B))
-                                .withValues(alpha: 0.18),
+                            color: (isPastDue ? const Color(0xFFDC2626) : const Color(0xFFD97706))
+                                .withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: isPastDue ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                              color: isPastDue ? const Color(0xFFDC2626) : const Color(0xFFD97706),
                             ),
                           ),
                           child: Icon(
                             isPastDue ? Icons.warning_rounded : Icons.alarm_on_rounded,
-                            color: isPastDue ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                            color: isPastDue ? const Color(0xFFDC2626) : const Color(0xFFD97706),
                             size: 26,
                           ),
                         ),
@@ -342,7 +342,7 @@ class _CrmScreenState extends State<CrmScreen>
                                     ? 'Follow-up in $minsBefore min!'
                                     : (isPastDue ? 'Follow-up Overdue!' : 'Follow-up Due Now!'),
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Color(0xFF0F172A),
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -355,7 +355,7 @@ class _CrmScreenState extends State<CrmScreen>
                                         : 'Scheduled for: ${DateFormat('dd MMM • hh:mm a').format(deal.postponedDate!)}')
                                     : 'Scheduled follow-up due now',
                                 style: TextStyle(
-                                  color: isPastDue ? const Color(0xFFF87171) : const Color(0xFFF59E0B),
+                                  color: isPastDue ? const Color(0xFFDC2626) : const Color(0xFFD97706),
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -365,7 +365,7 @@ class _CrmScreenState extends State<CrmScreen>
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(dialogCtx),
-                          icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 20),
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
                         ),
                       ],
                     ),
@@ -375,9 +375,9 @@ class _CrmScreenState extends State<CrmScreen>
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF10121C),
+                        color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF262A3C)),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +390,7 @@ class _CrmScreenState extends State<CrmScreen>
                                 child: Text(
                                   deal.name,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: Color(0xFF0F172A),
                                     fontSize: 15,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -400,13 +400,13 @@ class _CrmScreenState extends State<CrmScreen>
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFC084FC).withValues(alpha: 0.15),
+                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFC084FC).withValues(alpha: 0.5)),
+                                    border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
                                   ),
                                   child: Text(
                                     deal.contactStatus!,
-                                    style: const TextStyle(color: Color(0xFFC084FC), fontSize: 11, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(color: Color(0xFF7C3AED), fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                             ],
@@ -415,11 +415,11 @@ class _CrmScreenState extends State<CrmScreen>
                             const SizedBox(height: 10),
                             Row(
                               children: [
-                                const Icon(Icons.phone_rounded, size: 14, color: Colors.white54),
+                                const Icon(Icons.phone_rounded, size: 14, color: Color(0xFF64748B)),
                                 const SizedBox(width: 8),
                                 Text(
                                   deal.contactInfo!,
-                                  style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(color: Color(0xFF334155), fontSize: 13, fontWeight: FontWeight.w600),
                                 ),
                                 const Spacer(),
                                 // WhatsApp
@@ -429,16 +429,16 @@ class _CrmScreenState extends State<CrmScreen>
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                                      color: const Color(0xFF25D366).withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: const Color(0xFF25D366).withValues(alpha: 0.5)),
+                                      border: Border.all(color: const Color(0xFF25D366).withValues(alpha: 0.4)),
                                     ),
                                     child: const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF25D366), size: 13),
+                                        Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF16A34A), size: 13),
                                         SizedBox(width: 4),
-                                        Text('WhatsApp', style: TextStyle(color: Color(0xFF25D366), fontSize: 11, fontWeight: FontWeight.bold)),
+                                        Text('WhatsApp', style: TextStyle(color: Color(0xFF16A34A), fontSize: 11, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                   ),
@@ -451,16 +451,16 @@ class _CrmScreenState extends State<CrmScreen>
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                                      color: const Color(0xFF0284C7).withValues(alpha: 0.12),
                                       borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.5)),
+                                      border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
                                     ),
                                     child: const Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.call_outlined, color: Color(0xFF38BDF8), size: 13),
+                                        Icon(Icons.call_outlined, color: Color(0xFF0284C7), size: 13),
                                         SizedBox(width: 4),
-                                        Text('Call', style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold)),
+                                        Text('Call', style: TextStyle(color: Color(0xFF0284C7), fontSize: 11, fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                   ),
@@ -472,22 +472,22 @@ class _CrmScreenState extends State<CrmScreen>
                             const SizedBox(height: 8),
                             Row(
                               children: [
-                                const Icon(Icons.campaign_outlined, size: 12, color: Color(0xFF38BDF8)),
+                                const Icon(Icons.campaign_outlined, size: 12, color: Color(0xFF0284C7)),
                                 const SizedBox(width: 4),
                                 Text(
                                   alarmSource,
-                                  style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(color: Color(0xFF0284C7), fontSize: 11, fontWeight: FontWeight.w600),
                                 ),
                               ],
                             ),
                           ],
                           if (alarmNotes.isNotEmpty) ...[
                             const SizedBox(height: 10),
-                            const Divider(color: Color(0xFF262A3C), height: 1),
+                            const Divider(color: Color(0xFFE2E8F0), height: 1),
                             const SizedBox(height: 8),
                             Text(
                               alarmNotes,
-                              style: const TextStyle(color: Colors.white60, fontSize: 12),
+                              style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -502,13 +502,13 @@ class _CrmScreenState extends State<CrmScreen>
                       children: [
                         const Text(
                           'Snooze:',
-                          style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600),
+                          style: TextStyle(color: Color(0xFF64748B), fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(width: 8),
                         ActionChip(
-                          label: const Text('+15 min', style: TextStyle(fontSize: 11.5, color: Colors.white)),
-                          backgroundColor: const Color(0xFF222638),
-                          side: const BorderSide(color: Color(0xFF363C54)),
+                          label: const Text('+15 min', style: TextStyle(fontSize: 11.5, color: Color(0xFF334155), fontWeight: FontWeight.w600)),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
                           onPressed: () async {
                             final snoozeTime = DateTime.now().add(const Duration(minutes: 15));
                             final updated = deal.copyWith(postponedDate: snoozeTime);
@@ -531,9 +531,9 @@ class _CrmScreenState extends State<CrmScreen>
                         ),
                         const SizedBox(width: 6),
                         ActionChip(
-                          label: const Text('+1 hour', style: TextStyle(fontSize: 11.5, color: Colors.white)),
-                          backgroundColor: const Color(0xFF222638),
-                          side: const BorderSide(color: Color(0xFF363C54)),
+                          label: const Text('+1 hour', style: TextStyle(fontSize: 11.5, color: Color(0xFF334155), fontWeight: FontWeight.w600)),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
                           onPressed: () async {
                             final snoozeTime = DateTime.now().add(const Duration(hours: 1));
                             final updated = deal.copyWith(postponedDate: snoozeTime);
@@ -556,9 +556,9 @@ class _CrmScreenState extends State<CrmScreen>
                         ),
                         const SizedBox(width: 6),
                         ActionChip(
-                          label: const Text('Tomorrow', style: TextStyle(fontSize: 11.5, color: Colors.white)),
-                          backgroundColor: const Color(0xFF222638),
-                          side: const BorderSide(color: Color(0xFF363C54)),
+                          label: const Text('Tomorrow', style: TextStyle(fontSize: 11.5, color: Color(0xFF334155), fontWeight: FontWeight.w600)),
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          side: const BorderSide(color: Color(0xFFCBD5E1)),
                           onPressed: () async {
                             final snoozeTime = DateTime.now().add(const Duration(days: 1));
                             final updated = deal.copyWith(postponedDate: snoozeTime);
@@ -607,8 +607,8 @@ class _CrmScreenState extends State<CrmScreen>
                             }
                           },
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF4ADE80),
-                            side: const BorderSide(color: Color(0xFF4ADE80), width: 1.0),
+                            foregroundColor: const Color(0xFF16A34A),
+                            side: const BorderSide(color: Color(0xFF16A34A), width: 1.0),
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                           ),
@@ -619,7 +619,7 @@ class _CrmScreenState extends State<CrmScreen>
                           children: [
                             TextButton(
                               onPressed: () => Navigator.pop(dialogCtx),
-                              child: const Text('Dismiss', style: TextStyle(color: Colors.white60)),
+                              child: const Text('Dismiss', style: TextStyle(color: Color(0xFF64748B))),
                             ),
                             const SizedBox(width: 8),
                             ElevatedButton.icon(
@@ -1214,11 +1214,11 @@ class _CrmScreenState extends State<CrmScreen>
             }
 
             return Dialog(
-              backgroundColor: const Color(0xFF161824),
-              elevation: 24,
+              backgroundColor: Colors.white,
+              elevation: 20,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(color: Color(0xFF2A2E44), width: 1.2),
+                side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
               ),
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 620, maxHeight: 760),
@@ -1230,13 +1230,13 @@ class _CrmScreenState extends State<CrmScreen>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
                       decoration: const BoxDecoration(
-                        color: Color(0xFF1B1D2C),
+                        color: Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.only(
                           topLeft: Radius.circular(20),
                           topRight: Radius.circular(20),
                         ),
                         border: Border(
-                          bottom: BorderSide(color: Color(0xFF282C3F), width: 1.0),
+                          bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
                         ),
                       ),
                       child: Row(
@@ -1276,7 +1276,7 @@ class _CrmScreenState extends State<CrmScreen>
                                       child: Text(
                                         currentDeal.name,
                                         style: const TextStyle(
-                                          color: Colors.white,
+                                          color: Color(0xFF0F172A),
                                           fontSize: 17,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -1288,9 +1288,9 @@ class _CrmScreenState extends State<CrmScreen>
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: stageCol.withValues(alpha: 0.16),
+                                        color: stageCol.withValues(alpha: 0.12),
                                         borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(color: stageCol.withValues(alpha: 0.6)),
+                                        border: Border.all(color: stageCol.withValues(alpha: 0.5)),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -1320,17 +1320,17 @@ class _CrmScreenState extends State<CrmScreen>
                                 const SizedBox(height: 4),
                                 Row(
                                   children: [
-                                    Icon(Icons.calendar_today_rounded, size: 12, color: Colors.white.withValues(alpha: 0.45)),
+                                    const Icon(Icons.calendar_today_rounded, size: 12, color: Color(0xFF64748B)),
                                     const SizedBox(width: 5),
                                     Text(
                                       'Created $dateStr',
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(alpha: 0.5),
+                                      style: const TextStyle(
+                                        color: Color(0xFF64748B),
                                         fontSize: 11.5,
                                       ),
                                     ),
                                     const SizedBox(width: 10),
-                                    Text('•', style: TextStyle(color: Colors.white.withValues(alpha: 0.3))),
+                                    const Text('•', style: TextStyle(color: Color(0xFFCBD5E1))),
                                     const SizedBox(width: 10),
                                     _priorityTag(selectedPriority),
                                   ],
@@ -1341,7 +1341,7 @@ class _CrmScreenState extends State<CrmScreen>
                           const SizedBox(width: 8),
                           IconButton(
                             onPressed: () => Navigator.pop(dialogCtx),
-                            icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                            icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
                             splashRadius: 20,
                           ),
                         ],
@@ -1352,15 +1352,15 @@ class _CrmScreenState extends State<CrmScreen>
                     if (currentDeal.contactInfo != null && currentDeal.contactInfo!.trim().isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-                        color: const Color(0xFF12141F),
+                        color: const Color(0xFFF1F5F9),
                         child: Row(
                           children: [
-                            Icon(Icons.phone_outlined, size: 15, color: Colors.white.withValues(alpha: 0.6)),
+                            const Icon(Icons.phone_outlined, size: 15, color: Color(0xFF64748B)),
                             const SizedBox(width: 8),
                             SelectableText(
                               currentDeal.contactInfo!,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: Color(0xFF0F172A),
                                 fontWeight: FontWeight.w600,
                                 fontSize: 13,
                                 letterSpacing: 0.4,
@@ -1379,7 +1379,7 @@ class _CrmScreenState extends State<CrmScreen>
                                   );
                                 }
                               },
-                              icon: const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF94A3B8)),
+                              icon: const Icon(Icons.copy_rounded, size: 14, color: Color(0xFF64748B)),
                               tooltip: 'Copy Number',
                               splashRadius: 16,
                               padding: EdgeInsets.zero,
@@ -1393,19 +1393,19 @@ class _CrmScreenState extends State<CrmScreen>
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF25D366).withValues(alpha: 0.15),
+                                  color: const Color(0xFF25D366).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFF25D366).withValues(alpha: 0.5)),
+                                  border: Border.all(color: const Color(0xFF25D366).withValues(alpha: 0.4)),
                                 ),
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF25D366), size: 13),
+                                    Icon(Icons.chat_bubble_outline_rounded, color: Color(0xFF16A34A), size: 13),
                                     SizedBox(width: 5),
                                     Text(
                                       'WhatsApp',
                                       style: TextStyle(
-                                        color: Color(0xFF25D366),
+                                        color: Color(0xFF16A34A),
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1422,19 +1422,19 @@ class _CrmScreenState extends State<CrmScreen>
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                                  color: const Color(0xFF0284C7).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.5)),
+                                  border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.4)),
                                 ),
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.call_outlined, color: Color(0xFF38BDF8), size: 13),
+                                    Icon(Icons.call_outlined, color: Color(0xFF0284C7), size: 13),
                                     SizedBox(width: 5),
                                     Text(
                                       'Call',
                                       style: TextStyle(
-                                        color: Color(0xFF38BDF8),
+                                        color: Color(0xFF0284C7),
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1460,22 +1460,22 @@ class _CrmScreenState extends State<CrmScreen>
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1E2235),
+                                  color: const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFF2D334E)),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
                                 ),
                                 child: Row(
                                   children: [
                                     Container(
                                       padding: const EdgeInsets.all(8),
                                       decoration: BoxDecoration(
-                                        color: (followUpBadgeText != null ? followUpBadgeColor : Colors.white24)
-                                            .withValues(alpha: 0.15),
+                                        color: (followUpBadgeText != null ? followUpBadgeColor : Colors.black12)
+                                            .withValues(alpha: 0.12),
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(
                                         Icons.alarm_on_rounded,
-                                        color: followUpBadgeText != null ? followUpBadgeColor : Colors.white60,
+                                        color: followUpBadgeText != null ? followUpBadgeColor : const Color(0xFF64748B),
                                         size: 18,
                                       ),
                                     ),
@@ -1487,7 +1487,7 @@ class _CrmScreenState extends State<CrmScreen>
                                           Text(
                                             followUpBadgeText ?? 'No Follow-up Scheduled',
                                             style: TextStyle(
-                                              color: followUpBadgeText != null ? followUpBadgeColor : Colors.white70,
+                                              color: followUpBadgeText != null ? followUpBadgeColor : const Color(0xFF64748B),
                                               fontSize: 12.5,
                                               fontWeight: FontWeight.bold,
                                             ),
@@ -1497,7 +1497,7 @@ class _CrmScreenState extends State<CrmScreen>
                                               padding: const EdgeInsets.only(top: 2),
                                               child: Text(
                                                 'Status: ${currentDeal.contactStatus}',
-                                                style: const TextStyle(color: Color(0xFFC084FC), fontSize: 11.5),
+                                                style: const TextStyle(color: Color(0xFF7C3AED), fontSize: 11.5),
                                               ),
                                             ),
                                         ],
@@ -1519,8 +1519,8 @@ class _CrmScreenState extends State<CrmScreen>
                                         }
                                       },
                                       style: OutlinedButton.styleFrom(
-                                        foregroundColor: const Color(0xFFF59E0B),
-                                        side: const BorderSide(color: Color(0xFFF59E0B), width: 1.0),
+                                        foregroundColor: const Color(0xFFD97706),
+                                        side: const BorderSide(color: Color(0xFFD97706), width: 1.0),
                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                       ),
@@ -1540,13 +1540,13 @@ class _CrmScreenState extends State<CrmScreen>
                                   margin: const EdgeInsets.only(bottom: 14),
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.3)),
+                                    border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.25)),
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.badge_outlined, color: Color(0xFFA78BFA), size: 18),
+                                      const Icon(Icons.badge_outlined, color: Color(0xFF7C3AED), size: 18),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
@@ -1555,7 +1555,7 @@ class _CrmScreenState extends State<CrmScreen>
                                             const Text(
                                               'ASSIGNED STAFF',
                                               style: TextStyle(
-                                                color: Color(0xFFA78BFA),
+                                                color: Color(0xFF7C3AED),
                                                 fontSize: 10.5,
                                                 fontWeight: FontWeight.bold,
                                                 letterSpacing: 0.5,
@@ -1565,7 +1565,7 @@ class _CrmScreenState extends State<CrmScreen>
                                             Text(
                                               currentDeal.responsibleName!,
                                               style: const TextStyle(
-                                                color: Colors.white,
+                                                color: Color(0xFF0F172A),
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -1583,13 +1583,13 @@ class _CrmScreenState extends State<CrmScreen>
                                   margin: const EdgeInsets.only(bottom: 14),
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                                    color: const Color(0xFFEF4444).withValues(alpha: 0.08),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.25)),
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.cancel_outlined, color: Color(0xFFF87171), size: 18),
+                                      const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626), size: 18),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
@@ -1598,7 +1598,7 @@ class _CrmScreenState extends State<CrmScreen>
                                             const Text(
                                               'DEAL LOSE REASON',
                                               style: TextStyle(
-                                                color: Color(0xFFF87171),
+                                                color: Color(0xFFDC2626),
                                                 fontSize: 10.5,
                                                 fontWeight: FontWeight.bold,
                                                 letterSpacing: 0.5,
@@ -1610,7 +1610,7 @@ class _CrmScreenState extends State<CrmScreen>
                                                   ? currentDeal.adjournedReason!
                                                   : 'No specific reason recorded',
                                               style: const TextStyle(
-                                                color: Colors.white,
+                                                color: Color(0xFF991B1B),
                                                 fontSize: 13,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -1623,11 +1623,11 @@ class _CrmScreenState extends State<CrmScreen>
                                           Navigator.pop(dialogCtx);
                                           await _promptLeadLostReason(currentDeal);
                                         },
-                                        icon: const Icon(Icons.edit_note_rounded, size: 15, color: Color(0xFFF87171)),
+                                        icon: const Icon(Icons.edit_note_rounded, size: 15, color: Color(0xFFDC2626)),
                                         label: const Text(
                                           'Edit Reason',
                                           style: TextStyle(
-                                            color: Color(0xFFF87171),
+                                            color: Color(0xFFDC2626),
                                             fontSize: 12,
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -1723,12 +1723,12 @@ class _CrmScreenState extends State<CrmScreen>
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF10121C),
+                                      color: const Color(0xFFF8FAFC),
                                       borderRadius: BorderRadius.circular(6),
                                       border: Border.all(
                                         color: sourceController.text.trim() == preset
                                             ? AppTheme.primaryColor
-                                            : const Color(0xFF282C3F),
+                                            : const Color(0xFFCBD5E1),
                                       ),
                                     ),
                                     child: Text(
@@ -1736,7 +1736,7 @@ class _CrmScreenState extends State<CrmScreen>
                                       style: TextStyle(
                                         color: sourceController.text.trim() == preset
                                             ? AppTheme.primaryColor
-                                            : Colors.white70,
+                                            : const Color(0xFF334155),
                                         fontSize: 11,
                                         fontWeight: sourceController.text.trim() == preset ? FontWeight.bold : FontWeight.normal,
                                       ),
@@ -1753,7 +1753,7 @@ class _CrmScreenState extends State<CrmScreen>
                                   const Text(
                                     'Priority',
                                     style: TextStyle(
-                                      color: Color(0xFFE2E8F0),
+                                      color: Color(0xFF334155),
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w600,
                                       letterSpacing: 0.2,
@@ -1775,14 +1775,14 @@ class _CrmScreenState extends State<CrmScreen>
                                             }
                                           },
                                           labelStyle: TextStyle(
-                                            color: isSel ? Colors.black : Colors.white70,
+                                            color: isSel ? Colors.black : const Color(0xFF334155),
                                             fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                                             fontSize: 12,
                                           ),
                                           selectedColor: pCol,
-                                          backgroundColor: const Color(0xFF10121C),
+                                          backgroundColor: const Color(0xFFF8FAFC),
                                           side: BorderSide(
-                                            color: isSel ? pCol : const Color(0xFF282C3F),
+                                            color: isSel ? pCol : const Color(0xFFCBD5E1),
                                           ),
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                         ),
@@ -1827,13 +1827,13 @@ class _CrmScreenState extends State<CrmScreen>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
                       decoration: const BoxDecoration(
-                        color: Color(0xFF1B1D2C),
+                        color: Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.only(
                           bottomLeft: Radius.circular(20),
                           bottomRight: Radius.circular(20),
                         ),
                         border: Border(
-                          top: BorderSide(color: Color(0xFF282C3F), width: 1.0),
+                          top: BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
                         ),
                       ),
                       child: Wrap(
@@ -1885,7 +1885,7 @@ class _CrmScreenState extends State<CrmScreen>
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppTheme.primaryColor,
-                                    foregroundColor: Colors.black,
+                                    foregroundColor: Colors.white,
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
@@ -1899,8 +1899,8 @@ class _CrmScreenState extends State<CrmScreen>
                                     _promptLeadLostReason(currentDeal);
                                   },
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: const Color(0xFFF87171),
-                                    side: const BorderSide(color: Color(0xFFF87171), width: 1.0),
+                                    foregroundColor: const Color(0xFFDC2626),
+                                    side: const BorderSide(color: Color(0xFFDC2626), width: 1.0),
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
@@ -1914,8 +1914,8 @@ class _CrmScreenState extends State<CrmScreen>
                                     _openDealDetailScreen(currentDeal);
                                   },
                                   style: OutlinedButton.styleFrom(
-                                    foregroundColor: const Color(0xFF38BDF8),
-                                    side: const BorderSide(color: Color(0xFF38BDF8), width: 1.0),
+                                    foregroundColor: const Color(0xFF0284C7),
+                                    side: const BorderSide(color: Color(0xFF0284C7), width: 1.0),
                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                   ),
@@ -1932,7 +1932,7 @@ class _CrmScreenState extends State<CrmScreen>
                             children: [
                               TextButton(
                                 onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
-                                style: TextButton.styleFrom(foregroundColor: const Color(0xFF94A3B8)),
+                                style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
                                 child: const Text('Close'),
                               ),
                               const SizedBox(width: 8),
@@ -2005,7 +2005,7 @@ class _CrmScreenState extends State<CrmScreen>
                                       },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppTheme.primaryColor,
-                                  foregroundColor: Colors.black,
+                                  foregroundColor: Colors.white,
                                   padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                   elevation: 2,
@@ -2056,11 +2056,11 @@ class _CrmScreenState extends State<CrmScreen>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return Dialog(
-              backgroundColor: const Color(0xFF191B28),
-              elevation: 24,
+              backgroundColor: Colors.white,
+              elevation: 8,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(22),
-                side: const BorderSide(color: Color(0xFF2E334D), width: 1.2),
+                side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
               ),
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 480),
@@ -2089,13 +2089,13 @@ class _CrmScreenState extends State<CrmScreen>
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                                    color: AppTheme.primaryColor.withValues(alpha: 0.25),
                                     blurRadius: 10,
                                     offset: const Offset(0, 3),
                                   ),
                                 ],
                               ),
-                              child: const Icon(Icons.person_add_alt_1_rounded, color: Colors.black, size: 22),
+                              child: const Icon(Icons.person_add_alt_1_rounded, color: Colors.white, size: 22),
                             ),
                             const SizedBox(width: 14),
                             const Expanded(
@@ -2105,7 +2105,7 @@ class _CrmScreenState extends State<CrmScreen>
                                   Text(
                                     'New Lead',
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: Color(0xFF0F172A),
                                       fontSize: 19,
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 0.2,
@@ -2115,7 +2115,7 @@ class _CrmScreenState extends State<CrmScreen>
                                   Text(
                                     'Create a new inquiry in CRM',
                                     style: TextStyle(
-                                      color: Color(0xFF94A3B8),
+                                      color: Color(0xFF64748B),
                                       fontSize: 12.5,
                                     ),
                                   ),
@@ -2124,13 +2124,13 @@ class _CrmScreenState extends State<CrmScreen>
                             ),
                             IconButton(
                               onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
-                              icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                              icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
                               splashRadius: 20,
                             ),
                           ],
                         ),
                         const SizedBox(height: 20),
-                        const Divider(color: Color(0xFF262A3C), height: 1),
+                        const Divider(color: Color(0xFFE2E8F0), height: 1),
                         const SizedBox(height: 20),
 
                         // 1. Name
@@ -2212,20 +2212,20 @@ class _CrmScreenState extends State<CrmScreen>
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF10121C),
+                                color: const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
                                   color: sourceController.text.trim() == preset
                                       ? AppTheme.primaryColor
-                                      : const Color(0xFF282C3F),
+                                      : const Color(0xFFCBD5E1),
                                 ),
                               ),
                               child: Text(
                                 preset,
                                 style: TextStyle(
                                   color: sourceController.text.trim() == preset
-                                      ? AppTheme.primaryColor
-                                      : Colors.white70,
+                                  ? AppTheme.primaryColor
+                                  : const Color(0xFF334155),
                                   fontSize: 11,
                                   fontWeight: sourceController.text.trim() == preset ? FontWeight.bold : FontWeight.normal,
                                 ),
@@ -2266,8 +2266,8 @@ class _CrmScreenState extends State<CrmScreen>
                             OutlinedButton(
                               onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFFCBD5E1),
-                                side: const BorderSide(color: Color(0xFF333852)),
+                                foregroundColor: const Color(0xFF64748B),
+                                side: const BorderSide(color: Color(0xFFCBD5E1)),
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
@@ -2338,16 +2338,16 @@ class _CrmScreenState extends State<CrmScreen>
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
-                                foregroundColor: Colors.black,
+                                foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                elevation: 3,
+                                elevation: 2,
                               ),
                               icon: isSaving
                                   ? const SizedBox(
                                       width: 16,
                                       height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                     )
                                   : const Icon(Icons.check_rounded, size: 18),
                               label: Text(
@@ -2388,7 +2388,7 @@ class _CrmScreenState extends State<CrmScreen>
             Text(
               label,
               style: const TextStyle(
-                color: Color(0xFFE2E8F0),
+                color: Color(0xFF334155),
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
@@ -2412,17 +2412,17 @@ class _CrmScreenState extends State<CrmScreen>
           maxLines: maxLines,
           minLines: minLines,
           validator: validator,
-          style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500),
+          style: const TextStyle(color: Color(0xFF0F172A), fontSize: 14, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-            prefixIcon: Icon(icon, color: AppTheme.primaryColor.withValues(alpha: 0.85), size: 18),
+            hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+            prefixIcon: Icon(icon, color: AppTheme.primaryColor, size: 18),
             filled: true,
-            fillColor: const Color(0xFF10121C),
+            fillColor: const Color(0xFFF8FAFC),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF282C3F), width: 1.0),
+              borderSide: const BorderSide(color: Color(0xFFCBD5E1), width: 1.0),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
@@ -2456,25 +2456,25 @@ class _CrmScreenState extends State<CrmScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Colors.white12),
+          side: const BorderSide(color: Color(0xFFE2E8F0)),
         ),
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF16A34A).withValues(alpha: 0.2),
+                color: const Color(0xFF16A34A).withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.verified, color: Color(0xFF4ADE80), size: 24),
+              child: const Icon(Icons.verified, color: Color(0xFF16A34A), size: 24),
             ),
             const SizedBox(width: 12),
             const Text(
               'Pass Lead to Work & Client',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+              style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ],
         ),
@@ -2487,18 +2487,18 @@ class _CrmScreenState extends State<CrmScreen>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withValues(alpha: 0.1),
+                  color: const Color(0xFF0284C7).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                  border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    const Icon(Icons.info_outline, size: 20, color: Colors.blueAccent),
-                    const SizedBox(width: 10),
+                    Icon(Icons.info_outline, size: 20, color: Color(0xFF0284C7)),
+                    SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Passing this lead will automatically register the client in Client Management and activate this project in Work Management.',
-                        style: TextStyle(fontSize: 12, color: Colors.blue.shade200),
+                        style: TextStyle(fontSize: 12, color: Color(0xFF0369A1)),
                       ),
                     ),
                   ],
@@ -2507,45 +2507,45 @@ class _CrmScreenState extends State<CrmScreen>
               const SizedBox(height: 16),
               TextField(
                 controller: clientNameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
+                style: const TextStyle(color: Color(0xFF0F172A)),
+                decoration: const InputDecoration(
                   labelText: 'Client Name *',
-                  labelStyle: const TextStyle(color: Colors.white70),
+                  labelStyle: TextStyle(color: Color(0xFF64748B)),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                    borderSide: BorderSide(color: Color(0xFFCBD5E1)),
                   ),
-                  focusedBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF16A34A)),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF16A34A), width: 1.5),
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: contactController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
+                style: const TextStyle(color: Color(0xFF0F172A)),
+                decoration: const InputDecoration(
                   labelText: 'Contact Phone / Email',
-                  labelStyle: const TextStyle(color: Colors.white70),
+                  labelStyle: TextStyle(color: Color(0xFF64748B)),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                    borderSide: BorderSide(color: Color(0xFFCBD5E1)),
                   ),
-                  focusedBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF16A34A)),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF16A34A), width: 1.5),
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: workNameController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
+                style: const TextStyle(color: Color(0xFF0F172A)),
+                decoration: const InputDecoration(
                   labelText: 'Work Name *',
-                  labelStyle: const TextStyle(color: Colors.white70),
+                  labelStyle: TextStyle(color: Color(0xFF64748B)),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                    borderSide: BorderSide(color: Color(0xFFCBD5E1)),
                   ),
-                  focusedBorder: const OutlineInputBorder(
-                    borderSide: BorderSide(color: Color(0xFF16A34A)),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Color(0xFF16A34A), width: 1.5),
                   ),
                 ),
               ),
@@ -2555,15 +2555,15 @@ class _CrmScreenState extends State<CrmScreen>
                   Expanded(
                     child: TextField(
                       controller: workTypeController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
+                      style: const TextStyle(color: Color(0xFF0F172A)),
+                      decoration: const InputDecoration(
                         labelText: 'Work Type',
-                        labelStyle: const TextStyle(color: Colors.white70),
+                        labelStyle: TextStyle(color: Color(0xFF64748B)),
                         enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                          borderSide: BorderSide(color: Color(0xFFCBD5E1)),
                         ),
-                        focusedBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFF16A34A)),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF16A34A), width: 1.5),
                         ),
                       ),
                     ),
@@ -2573,15 +2573,15 @@ class _CrmScreenState extends State<CrmScreen>
                     child: TextField(
                       controller: amountController,
                       keyboardType: TextInputType.number,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
+                      style: const TextStyle(color: Color(0xFF0F172A)),
+                      decoration: const InputDecoration(
                         labelText: 'Amount (₹)',
-                        labelStyle: const TextStyle(color: Colors.white70),
+                        labelStyle: TextStyle(color: Color(0xFF64748B)),
                         enabledBorder: OutlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                          borderSide: BorderSide(color: Color(0xFFCBD5E1)),
                         ),
-                        focusedBorder: const OutlineInputBorder(
-                          borderSide: BorderSide(color: Color(0xFF16A34A)),
+                        focusedBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Color(0xFF16A34A), width: 1.5),
                         ),
                       ),
                     ),
@@ -2594,7 +2594,7 @@ class _CrmScreenState extends State<CrmScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -2684,25 +2684,25 @@ class _CrmScreenState extends State<CrmScreen>
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF181A2A),
+              backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
-                side: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.5), width: 1.2),
+                side: BorderSide(color: const Color(0xFFEF4444).withValues(alpha: 0.3), width: 1.0),
               ),
               title: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.cancel_outlined, color: Color(0xFFF87171), size: 20),
+                    child: const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626), size: 20),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     isAlreadyLost ? 'Edit Deal Lose Reason' : 'Mark as Deal Lose',
-                    style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: Color(0xFF0F172A), fontSize: 17, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -2714,10 +2714,10 @@ class _CrmScreenState extends State<CrmScreen>
                   children: [
                     Text(
                       'Select or enter the reason why lead "${deal.name}" was lost:',
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style: const TextStyle(color: Color(0xFF334155), fontSize: 13),
                     ),
                     const SizedBox(height: 14),
-                    const Text('Quick Reasons:', style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
+                    const Text('Quick Reasons:', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 6,
@@ -2729,15 +2729,15 @@ class _CrmScreenState extends State<CrmScreen>
                             r,
                             style: TextStyle(
                               fontSize: 11,
-                              color: isSel ? Colors.white : Colors.white70,
+                              color: isSel ? const Color(0xFFDC2626) : const Color(0xFF334155),
                               fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
                           selected: isSel,
-                          selectedColor: const Color(0xFFEF4444).withValues(alpha: 0.35),
-                          backgroundColor: const Color(0xFF222638),
+                          selectedColor: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                          backgroundColor: const Color(0xFFF8FAFC),
                           side: BorderSide(
-                            color: isSel ? const Color(0xFFEF4444) : const Color(0xFF363C54),
+                            color: isSel ? const Color(0xFFDC2626) : const Color(0xFFCBD5E1),
                           ),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           onSelected: (sel) {
@@ -2753,23 +2753,23 @@ class _CrmScreenState extends State<CrmScreen>
                     TextField(
                       controller: reasonController,
                       maxLines: 3,
-                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                      style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13),
                       decoration: InputDecoration(
                         hintText: 'Enter specific reason or notes for losing this deal...',
-                        hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                        hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                         filled: true,
-                        fillColor: const Color(0xFF10121C),
+                        fillColor: const Color(0xFFF8FAFC),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Color(0xFF282C3F)),
+                          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Color(0xFF282C3F)),
+                          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Color(0xFFEF4444)),
+                          borderSide: const BorderSide(color: Color(0xFFDC2626), width: 1.5),
                         ),
                         contentPadding: const EdgeInsets.all(12),
                       ),
@@ -2780,12 +2780,12 @@ class _CrmScreenState extends State<CrmScreen>
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(dialogCtx, false),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+                  child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
                 ),
                 ElevatedButton.icon(
                   onPressed: () => Navigator.pop(dialogCtx, true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEF4444),
+                    backgroundColor: const Color(0xFFDC2626),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -2925,14 +2925,17 @@ class _CrmScreenState extends State<CrmScreen>
           return StatefulBuilder(
             builder: (ctx, setDialogState) {
               return AlertDialog(
-                backgroundColor: const Color(0xFF181A2A),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
                 title: Row(
                   children: [
                     const Icon(Icons.chat_rounded, color: Color(0xFF25D366)),
                     const SizedBox(width: 8),
                     Text('Send WhatsApp to $name',
-                        style: const TextStyle(color: Colors.white, fontSize: 16)),
+                        style: const TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold)),
                   ],
                 ),
                 content: SizedBox(
@@ -2944,9 +2947,9 @@ class _CrmScreenState extends State<CrmScreen>
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.05),
+                          color: const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(color: const Color(0xFFCBD5E1)),
                         ),
                         child: Row(
                           children: [
@@ -2954,18 +2957,18 @@ class _CrmScreenState extends State<CrmScreen>
                             const SizedBox(width: 6),
                             const Text(
                               'Sender: CUC Official (+91 73064 25378)',
-                              style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
+                              style: TextStyle(color: Color(0xFF334155), fontSize: 11, fontWeight: FontWeight.w500),
                             ),
                             const Spacer(),
                             Text(
                               'To: +$formattedPhone',
-                              style: const TextStyle(color: Colors.white54, fontSize: 11),
+                              style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text('Quick Templates:', style: TextStyle(color: Colors.white60, fontSize: 11)),
+                      const Text('Quick Templates:', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 6),
                       Wrap(
                         spacing: 6,
@@ -2981,13 +2984,20 @@ class _CrmScreenState extends State<CrmScreen>
                       TextField(
                         controller: msgCtrl,
                         maxLines: 4,
-                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13),
                         decoration: InputDecoration(
                           filled: true,
-                          fillColor: const Color(0xFF242738),
+                          fillColor: const Color(0xFFF8FAFC),
                           hintText: 'Type your message...',
-                          hintStyle: const TextStyle(color: Colors.white38),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          hintStyle: const TextStyle(color: Color(0xFF94A3B8)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                          ),
                         ),
                       ),
                     ],
@@ -2996,12 +3006,12 @@ class _CrmScreenState extends State<CrmScreen>
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(dialogCtx),
-                    child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                    child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
                   ),
                   OutlinedButton.icon(
-                    icon: const Icon(Icons.open_in_new, size: 14, color: Colors.white70),
+                    icon: const Icon(Icons.open_in_new, size: 14, color: Color(0xFF334155)),
                     label: const Text('Open App (wa.me)',
-                        style: TextStyle(color: Colors.white70, fontSize: 12)),
+                        style: TextStyle(color: Color(0xFF334155), fontSize: 12)),
                     onPressed: () {
                       Navigator.pop(dialogCtx);
                       WhatsAppCloudService.launchWhatsAppApp(
@@ -3090,7 +3100,7 @@ class _CrmScreenState extends State<CrmScreen>
         child: Text(
           label,
           style: const TextStyle(
-            color: Color(0xFF25D366),
+            color: Color(0xFF16A34A),
             fontSize: 11,
             fontWeight: FontWeight.w600,
           ),
@@ -3213,17 +3223,17 @@ class _CrmScreenState extends State<CrmScreen>
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.05),
+              ? const Color(0xFFFEF3C7)
+              : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? const Color(0xFFF59E0B) : Colors.white.withValues(alpha: 0.12),
+            color: isSelected ? const Color(0xFFD97706) : const Color(0xFFCBD5E1),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? const Color(0xFFF59E0B) : Colors.white70,
+            color: isSelected ? const Color(0xFFB45309) : const Color(0xFF334155),
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
@@ -3298,10 +3308,10 @@ class _CrmScreenState extends State<CrmScreen>
             }
 
             return Dialog(
-              backgroundColor: const Color(0xFF161622),
+              backgroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
-                side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
               ),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 500),
@@ -3318,10 +3328,10 @@ class _CrmScreenState extends State<CrmScreen>
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(Icons.alarm_add_rounded, color: Color(0xFFF59E0B), size: 22),
+                              child: const Icon(Icons.alarm_add_rounded, color: Color(0xFFD97706), size: 22),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -3331,14 +3341,14 @@ class _CrmScreenState extends State<CrmScreen>
                                   const Text(
                                     'Set Live Follow-up & Reminder',
                                     style: TextStyle(
-                                      color: Colors.white,
+                                      color: Color(0xFF0F172A),
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16.5,
                                     ),
                                   ),
                                   Text(
                                     deal.name,
-                                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -3347,7 +3357,7 @@ class _CrmScreenState extends State<CrmScreen>
                             ),
                             IconButton(
                               onPressed: () => Navigator.pop(dialogCtx),
-                              icon: const Icon(Icons.close_rounded, color: Colors.white38),
+                              icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8)),
                             ),
                           ],
                         ),
@@ -3358,18 +3368,18 @@ class _CrmScreenState extends State<CrmScreen>
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.04),
+                              color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.phone_outlined, color: Colors.white38, size: 16),
+                                const Icon(Icons.phone_outlined, color: Color(0xFF64748B), size: 16),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
                                     deal.contactInfo!,
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                                    style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13),
                                   ),
                                 ),
                                 IconButton(
@@ -3396,7 +3406,7 @@ class _CrmScreenState extends State<CrmScreen>
                         // 1. Follow-up Date
                         const Text(
                           '1. Follow-up Date',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                          style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                         const SizedBox(height: 8),
                         Wrap(
@@ -3443,16 +3453,16 @@ class _CrmScreenState extends State<CrmScreen>
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
+                                  color: const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                                  border: Border.all(color: const Color(0xFFCBD5E1)),
                                 ),
                                 child: const Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.calendar_month_rounded, size: 13, color: Colors.white70),
+                                    Icon(Icons.calendar_month_rounded, size: 13, color: Color(0xFF334155)),
                                     SizedBox(width: 4),
-                                    Text('Custom Date', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                    Text('Custom Date', style: TextStyle(color: Color(0xFF334155), fontSize: 12)),
                                   ],
                                 ),
                               ),
@@ -3465,7 +3475,7 @@ class _CrmScreenState extends State<CrmScreen>
                         // 2. Follow-up Time
                         const Text(
                           '2. Reminder Time (Live Auto-Trigger)',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                          style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                         const SizedBox(height: 8),
                         Wrap(
@@ -3535,18 +3545,18 @@ class _CrmScreenState extends State<CrmScreen>
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.05),
+                                  color: const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                                  border: Border.all(color: const Color(0xFFCBD5E1)),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.access_time_rounded, size: 13, color: Colors.white70),
+                                    const Icon(Icons.access_time_rounded, size: 13, color: Color(0xFF334155)),
                                     const SizedBox(width: 4),
                                     Text(
                                       selectedTime.format(context),
-                                      style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 12, fontWeight: FontWeight.bold),
+                                      style: const TextStyle(color: Color(0xFFD97706), fontSize: 12, fontWeight: FontWeight.bold),
                                     ),
                                   ],
                                 ),
@@ -3560,13 +3570,13 @@ class _CrmScreenState extends State<CrmScreen>
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                              color: const Color(0xFFFEF3C7),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
+                              border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.5)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.alarm_on_rounded, size: 18, color: Color(0xFFF59E0B)),
+                                const Icon(Icons.alarm_on_rounded, size: 18, color: Color(0xFFB45309)),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
@@ -3574,19 +3584,19 @@ class _CrmScreenState extends State<CrmScreen>
                                     children: [
                                       Text(
                                         'Reminder set: ${DateFormat('EEE, dd MMM yyyy • hh:mm a').format(combinedDateTime)} (IST)',
-                                        style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 12.5, fontWeight: FontWeight.bold),
+                                        style: const TextStyle(color: Color(0xFF92400E), fontSize: 12.5, fontWeight: FontWeight.bold),
                                       ),
                                       if (relativeTimeStr.isNotEmpty)
                                         Text(
                                           'Alert will pop up automatically $relativeTimeStr (live, no refresh needed)',
-                                          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                                          style: const TextStyle(color: Color(0xFF78350F), fontSize: 11),
                                         ),
                                     ],
                                   ),
                                 ),
                                 InkWell(
                                   onTap: () => setDialogState(() => selectedDate = null),
-                                  child: const Icon(Icons.close_rounded, size: 16, color: Colors.white54),
+                                  child: const Icon(Icons.close_rounded, size: 16, color: Color(0xFF92400E)),
                                 ),
                               ],
                             ),
@@ -3598,23 +3608,23 @@ class _CrmScreenState extends State<CrmScreen>
                         // Status / Disposition
                         const Text(
                           '3. Lead / Contact Status',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                          style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.05),
+                            color: const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                            border: Border.all(color: const Color(0xFFCBD5E1)),
                           ),
                           child: DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
                               value: statuses.contains(selectedStatus) ? selectedStatus : statuses.first,
                               isExpanded: true,
-                              dropdownColor: const Color(0xFF1E1E2D),
-                              style: const TextStyle(color: Colors.white, fontSize: 13),
-                              icon: const Icon(Icons.arrow_drop_down, color: Colors.white38),
+                              dropdownColor: Colors.white,
+                              style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13),
+                              icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
                               items: statuses
                                   .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                                   .toList(),
@@ -3632,25 +3642,25 @@ class _CrmScreenState extends State<CrmScreen>
                         // Follow-up Notes
                         const Text(
                           '4. Add Remark / Note',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                          style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                         const SizedBox(height: 8),
                         TextField(
                           controller: noteController,
                           maxLines: 3,
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                          style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13),
                           decoration: InputDecoration(
                             hintText: 'What did the client say? What is the callback discussion?',
-                            hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                            hintStyle: const TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                             filled: true,
-                            fillColor: Colors.white.withValues(alpha: 0.04),
+                            fillColor: const Color(0xFFF8FAFC),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+                              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+                              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(10),
@@ -3697,7 +3707,7 @@ class _CrmScreenState extends State<CrmScreen>
                             const Spacer(),
                             TextButton(
                               onPressed: isSaving ? null : () => Navigator.pop(dialogCtx),
-                              style: TextButton.styleFrom(foregroundColor: Colors.white60),
+                              style: TextButton.styleFrom(foregroundColor: const Color(0xFF64748B)),
                               child: const Text('Cancel'),
                             ),
                             const SizedBox(width: 10),
@@ -3769,12 +3779,12 @@ class _CrmScreenState extends State<CrmScreen>
                                     },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppTheme.primaryColor,
-                                foregroundColor: Colors.black,
+                                foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               ),
                               icon: isSaving
-                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                   : const Icon(Icons.alarm_on_rounded, size: 16),
                               label: Text(
                                 isSaving ? 'Saving...' : 'Set Reminder',
@@ -3808,17 +3818,17 @@ class _CrmScreenState extends State<CrmScreen>
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? const Color(0xFF38BDF8).withValues(alpha: 0.25)
-              : Colors.white.withValues(alpha: 0.05),
+              ? const Color(0xFFE0F2FE)
+              : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? const Color(0xFF38BDF8) : Colors.white.withValues(alpha: 0.12),
+            color: isSelected ? const Color(0xFF0284C7) : const Color(0xFFCBD5E1),
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? const Color(0xFF38BDF8) : Colors.white70,
+            color: isSelected ? const Color(0xFF0369A1) : const Color(0xFF334155),
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
@@ -3842,14 +3852,14 @@ class _CrmScreenState extends State<CrmScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A24),
+        backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: Colors.white12),
+          side: const BorderSide(color: Color(0xFFE2E8F0)),
         ),
         title: const Text(
           'Import Existing Work to CRM',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+          style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 18),
         ),
         content: SizedBox(
           width: 500,
@@ -3859,7 +3869,7 @@ class _CrmScreenState extends State<CrmScreen>
             children: [
               const Text(
                 'Select an existing project to manage in the separate CRM lead pipeline:',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
               ),
               const SizedBox(height: 12),
               Expanded(
@@ -3870,26 +3880,27 @@ class _CrmScreenState extends State<CrmScreen>
                     return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: const Color(0xFFF8FAFC),
                         borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
                       ),
                       child: ListTile(
                         title: Text(
                           d.name,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: Color(0xFF0F172A),
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
                         ),
                         subtitle: Text(
                           '${d.clientName ?? 'No client'} • ${d.stage} • ₹${d.amount}',
-                          style: const TextStyle(color: Colors.white54, fontSize: 12),
+                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
                         ),
                         trailing: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.black,
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             minimumSize: Size.zero,
                           ),
@@ -3922,7 +3933,7 @@ class _CrmScreenState extends State<CrmScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close', style: TextStyle(color: Colors.white54)),
+            child: const Text('Close', style: TextStyle(color: Color(0xFF64748B))),
           ),
         ],
       ),
@@ -4003,11 +4014,11 @@ class _CrmScreenState extends State<CrmScreen>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return Dialog(
-              backgroundColor: const Color(0xFF191B28),
-              elevation: 24,
+              backgroundColor: Colors.white,
+              elevation: 8,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
-                side: const BorderSide(color: Color(0xFF2E334D), width: 1.2),
+                side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.0),
               ),
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 580, maxHeight: 600),
@@ -4025,7 +4036,7 @@ class _CrmScreenState extends State<CrmScreen>
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: const Color(0xFFEAB308).withValues(alpha: 0.3)),
                           ),
-                          child: const Icon(Icons.table_view_rounded, color: Color(0xFFFACC15), size: 22),
+                          child: const Icon(Icons.table_view_rounded, color: Color(0xFFD97706), size: 22),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -4035,7 +4046,7 @@ class _CrmScreenState extends State<CrmScreen>
                               Text(
                                 'Import Inquiry Register (${pending.length} Leads)',
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Color(0xFF0F172A),
                                   fontSize: 17,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -4043,19 +4054,19 @@ class _CrmScreenState extends State<CrmScreen>
                               const SizedBox(height: 2),
                               const Text(
                                 'October 2026 Register • Will be added to Active CRM Leads',
-                                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
+                                style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                               ),
                             ],
                           ),
                         ),
                         IconButton(
                           onPressed: isImporting ? null : () => Navigator.pop(dialogCtx),
-                          icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 20),
+                          icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    const Divider(color: Color(0xFF262A3C), height: 1),
+                    const Divider(color: Color(0xFFE2E8F0), height: 1),
                     const SizedBox(height: 12),
                     if (isImporting) ...[
                       Padding(
@@ -4064,18 +4075,18 @@ class _CrmScreenState extends State<CrmScreen>
                           children: [
                             LinearProgressIndicator(
                               value: progressValue > 0 ? progressValue : null,
-                              backgroundColor: const Color(0xFF262A3C),
-                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFEAB308)),
+                              backgroundColor: const Color(0xFFE2E8F0),
+                              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFD97706)),
                             ),
                             const SizedBox(height: 14),
                             Text(
                               progressText,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                              style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13),
                             ),
                             const SizedBox(height: 4),
                             const Text(
                               'Writing to CRM database and disaster recovery backup...',
-                              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+                              style: TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
                             ),
                           ],
                         ),
@@ -4091,9 +4102,9 @@ class _CrmScreenState extends State<CrmScreen>
                             return Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF121420),
+                                color: const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFF262A3C)),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
                               ),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -4101,13 +4112,13 @@ class _CrmScreenState extends State<CrmScreen>
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: Colors.blueAccent.withValues(alpha: 0.15),
+                                      color: const Color(0xFF0284C7).withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
                                       item['date'] ?? '',
                                       style: const TextStyle(
-                                        color: Colors.lightBlueAccent,
+                                        color: Color(0xFF0284C7),
                                         fontSize: 10.5,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -4123,7 +4134,7 @@ class _CrmScreenState extends State<CrmScreen>
                                             Text(
                                               item['name'] ?? '',
                                               style: const TextStyle(
-                                                color: Colors.white,
+                                                color: Color(0xFF0F172A),
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 13.5,
                                               ),
@@ -4132,7 +4143,7 @@ class _CrmScreenState extends State<CrmScreen>
                                             Text(
                                               item['phone'] ?? '',
                                               style: const TextStyle(
-                                                color: Color(0xFF94A3B8),
+                                                color: Color(0xFF64748B),
                                                 fontSize: 12,
                                               ),
                                             ),
@@ -4142,7 +4153,7 @@ class _CrmScreenState extends State<CrmScreen>
                                         Text(
                                           item['requirement'] ?? '',
                                           style: const TextStyle(
-                                            color: Color(0xFFFACC15),
+                                            color: Color(0xFFB45309),
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -4174,13 +4185,13 @@ class _CrmScreenState extends State<CrmScreen>
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(dialogCtx),
-                            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
+                            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
                           ),
                           const SizedBox(width: 12),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFEAB308),
-                              foregroundColor: Colors.black,
+                              backgroundColor: const Color(0xFFD97706),
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             ),
@@ -4251,14 +4262,9 @@ class _CrmScreenState extends State<CrmScreen>
       margin: const EdgeInsets.fromLTRB(24, 12, 24, 0),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFFEAB308).withValues(alpha: 0.16),
-            const Color(0xFFCA8A04).withValues(alpha: 0.08),
-          ],
-        ),
+        color: const Color(0xFFFEF3C7),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFEAB308).withValues(alpha: 0.45)),
+        border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
       ),
       child: _isBatchImporting
           ? Row(
@@ -4266,7 +4272,7 @@ class _CrmScreenState extends State<CrmScreen>
                 const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFFFACC15)),
+                  child: CircularProgressIndicator(strokeWidth: 2.2, color: Color(0xFFD97706)),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -4274,7 +4280,7 @@ class _CrmScreenState extends State<CrmScreen>
                     _batchImportStatus.isNotEmpty
                         ? _batchImportStatus
                         : 'Importing leads into CRM...',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
+                    style: const TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.bold, fontSize: 13.5),
                   ),
                 ),
               ],
@@ -4284,10 +4290,10 @@ class _CrmScreenState extends State<CrmScreen>
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEAB308).withValues(alpha: 0.25),
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.cloud_download_rounded, color: Color(0xFFFACC15), size: 20),
+                  child: const Icon(Icons.cloud_download_rounded, color: Color(0xFFB45309), size: 20),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -4296,12 +4302,12 @@ class _CrmScreenState extends State<CrmScreen>
                     children: [
                       Text(
                         '${pending.length} October Inquiries Ready to Add to CRM',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13.5),
+                        style: const TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.bold, fontSize: 13.5),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         'Leads from registration sheet (${pending.take(3).map((e) => e['name']).join(', ')}${pending.length > 3 ? ', +${pending.length - 3} more' : ''})',
-                        style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 12),
+                        style: const TextStyle(color: Color(0xFF78350F), fontSize: 12),
                       ),
                     ],
                   ),
@@ -4309,7 +4315,7 @@ class _CrmScreenState extends State<CrmScreen>
                 TextButton(
                   onPressed: _showImportSheetDialog,
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFFACC15),
+                    foregroundColor: const Color(0xFFB45309),
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                   ),
                   child: const Text('Review List', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5)),
@@ -4318,8 +4324,8 @@ class _CrmScreenState extends State<CrmScreen>
                 ElevatedButton.icon(
                   onPressed: _directImportSheetLeads,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEAB308),
-                    foregroundColor: Colors.black,
+                    backgroundColor: const Color(0xFFD97706),
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -4337,7 +4343,7 @@ class _CrmScreenState extends State<CrmScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D12),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: Column(
         children: [
           _buildHeader(),
@@ -4362,11 +4368,11 @@ class _CrmScreenState extends State<CrmScreen>
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _createNewDeal,
         backgroundColor: AppTheme.primaryColor,
-        icon: const Icon(Icons.add_rounded, color: Colors.black),
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
         label: const Text(
           'New Lead',
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -4377,10 +4383,10 @@ class _CrmScreenState extends State<CrmScreen>
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF13131A),
+      decoration: const BoxDecoration(
+        color: Colors.white,
         border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          bottom: BorderSide(color: Color(0xFFE2E8F0)),
         ),
       ),
       child: Column(
@@ -4389,7 +4395,7 @@ class _CrmScreenState extends State<CrmScreen>
           Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
+                icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF0F172A), size: 22),
                 tooltip: 'Back to Dashboard',
                 onPressed: () {
                   if (widget.onBack != null) {
@@ -4399,8 +4405,8 @@ class _CrmScreenState extends State<CrmScreen>
                   }
                 },
                 style: IconButton.styleFrom(
-                  backgroundColor: Colors.white.withValues(alpha: 0.08),
-                  hoverColor: Colors.white.withValues(alpha: 0.16),
+                  backgroundColor: const Color(0xFFF1F5F9),
+                  hoverColor: const Color(0xFFE2E8F0),
                   padding: const EdgeInsets.all(10),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
@@ -4409,7 +4415,7 @@ class _CrmScreenState extends State<CrmScreen>
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: AppTheme.primaryColor.withValues(alpha: 0.3),
@@ -4424,7 +4430,7 @@ class _CrmScreenState extends State<CrmScreen>
                   Text(
                     'CRM',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF0F172A),
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 0.5,
@@ -4432,7 +4438,7 @@ class _CrmScreenState extends State<CrmScreen>
                   ),
                   Text(
                     'Customer Relationship & Lead Management',
-                    style: TextStyle(color: Colors.white38, fontSize: 12),
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
                   ),
                 ],
               ),
@@ -4606,11 +4612,11 @@ class _CrmScreenState extends State<CrmScreen>
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
                                     color: _showAllPipelines
-                                        ? AppTheme.primaryColor.withValues(alpha: 0.2)
-                                        : Colors.white.withValues(alpha: 0.05),
+                                        ? AppTheme.primaryColor.withValues(alpha: 0.15)
+                                        : const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(20),
                                     border: Border.all(
-                                      color: _showAllPipelines ? AppTheme.primaryColor : Colors.white.withValues(alpha: 0.15),
+                                      color: _showAllPipelines ? AppTheme.primaryColor : const Color(0xFFE2E8F0),
                                     ),
                                   ),
                                   child: Row(
@@ -4619,13 +4625,13 @@ class _CrmScreenState extends State<CrmScreen>
                                       Icon(
                                         _showAllPipelines ? Icons.layers_rounded : Icons.filter_alt_outlined,
                                         size: 14,
-                                        color: _showAllPipelines ? AppTheme.primaryColor : Colors.white70,
+                                        color: _showAllPipelines ? AppTheme.primaryColor : const Color(0xFF64748B),
                                       ),
                                       const SizedBox(width: 5),
                                       Text(
                                         _showAllPipelines ? 'All Pipelines' : 'CRM Only',
                                         style: TextStyle(
-                                          color: _showAllPipelines ? AppTheme.primaryColor : Colors.white70,
+                                          color: _showAllPipelines ? AppTheme.primaryColor : const Color(0xFF64748B),
                                           fontSize: 11,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -4694,29 +4700,29 @@ class _CrmScreenState extends State<CrmScreen>
               final isNarrow = constraints.maxWidth < 950;
               final searchField = Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                  color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: _searchQuery.isNotEmpty
-                        ? AppTheme.primaryColor.withValues(alpha: 0.6)
-                        : Colors.white.withValues(alpha: 0.08),
-                    width: _searchQuery.isNotEmpty ? 1.4 : 1.0,
+                        ? AppTheme.primaryColor
+                        : const Color(0xFFCBD5E1),
+                    width: _searchQuery.isNotEmpty ? 1.5 : 1.0,
                   ),
                 ),
                 child: TextField(
                   controller: _searchController,
                   textInputAction: TextInputAction.search,
-                  style: const TextStyle(color: Colors.white, fontSize: 13.5),
+                  style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13.5),
                   decoration: InputDecoration(
                     hintText: 'Search leads by name, phone, place, work type, inquiry, remarks...',
-                    hintStyle: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.35),
+                    hintStyle: const TextStyle(
+                      color: Color(0xFF94A3B8),
                       fontSize: 13,
                     ),
                     prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryColor, size: 20),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.close_rounded, color: Colors.white70, size: 18),
+                            icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 18),
                             tooltip: 'Clear Search',
                             onPressed: () {
                               _searchController.clear();
@@ -4843,9 +4849,9 @@ class _CrmScreenState extends State<CrmScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -4862,14 +4868,14 @@ class _CrmScreenState extends State<CrmScreen>
                         value: s,
                         child: Text(
                           s,
-                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                          style: const TextStyle(color: Color(0xFF334155), fontSize: 13),
                         ),
                       ))
                   .toList(),
               onChanged: onChanged,
-              dropdownColor: const Color(0xFF1A1A24),
-              icon: const Icon(Icons.expand_more_rounded, color: Colors.white38, size: 18),
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+              dropdownColor: Colors.white,
+              icon: const Icon(Icons.expand_more_rounded, color: Color(0xFF64748B), size: 18),
+              style: const TextStyle(color: Color(0xFF334155), fontSize: 13),
             ),
           ),
         ],
@@ -4889,13 +4895,18 @@ class _CrmScreenState extends State<CrmScreen>
 
   Widget _buildTabBar() {
     return Container(
-      color: const Color(0xFF13131A),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
       child: TabBar(
         controller: _tabController,
         indicatorColor: AppTheme.primaryColor,
         indicatorWeight: 3,
         labelColor: AppTheme.primaryColor,
-        unselectedLabelColor: Colors.white38,
+        unselectedLabelColor: const Color(0xFF64748B),
         labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
         tabs: [
           const Tab(
@@ -4943,23 +4954,23 @@ class _CrmScreenState extends State<CrmScreen>
             children: [
               Container(
                 padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.05),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF1F5F9),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.search_off_rounded, color: Colors.white38, size: 44),
+                child: const Icon(Icons.search_off_rounded, color: Color(0xFF94A3B8), size: 44),
               ),
               const SizedBox(height: 14),
               Text(
                 _searchQuery.isNotEmpty
                     ? 'No leads matching "$_searchQuery"'
                     : 'No leads match current filters',
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               const Text(
                 'Try searching by lead name, phone, work type, inquiry details, or remarks.',
-                style: TextStyle(color: Colors.white38, fontSize: 12.5),
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 12.5),
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
@@ -5067,9 +5078,9 @@ class _CrmScreenState extends State<CrmScreen>
               margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                color: const Color(0xFFFEF3C7),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.3)),
+                border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.35)),
               ),
               child: Row(
                 children: [
@@ -5079,7 +5090,7 @@ class _CrmScreenState extends State<CrmScreen>
                     _searchQuery.isNotEmpty
                         ? 'Found $totalMatches lead${totalMatches == 1 ? '' : 's'} matching "$_searchQuery"'
                         : 'Showing $totalMatches filtered lead${totalMatches == 1 ? '' : 's'}',
-                    style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: Color(0xFF92400E), fontSize: 12.5, fontWeight: FontWeight.w600),
                   ),
                   const Spacer(),
                   InkWell(
@@ -5143,10 +5154,10 @@ class _CrmScreenState extends State<CrmScreen>
 
         return Container(
           decoration: BoxDecoration(
-            color: const Color(0xFF13131A),
+            color: const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isHovered ? color : color.withValues(alpha: 0.25),
+              color: isHovered ? color : const Color(0xFFE2E8F0),
               width: isHovered ? 2 : 1,
             ),
             boxShadow: isHovered
@@ -5167,12 +5178,12 @@ class _CrmScreenState extends State<CrmScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: isHovered
-                      ? color.withValues(alpha: 0.16)
-                      : color.withValues(alpha: 0.08),
+                      ? color.withValues(alpha: 0.12)
+                      : Colors.white,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                  border: Border(
+                  border: const Border(
                     bottom: BorderSide(
-                      color: color.withValues(alpha: 0.2),
+                      color: Color(0xFFE2E8F0),
                     ),
                   ),
                 ),
@@ -5181,7 +5192,7 @@ class _CrmScreenState extends State<CrmScreen>
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.2),
+                        color: color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(icon, color: color, size: 16),
@@ -5196,7 +5207,7 @@ class _CrmScreenState extends State<CrmScreen>
                               Text(
                                 title,
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: Color(0xFF0F172A),
                                   fontWeight: FontWeight.bold,
                                   fontSize: 14,
                                 ),
@@ -5258,7 +5269,7 @@ class _CrmScreenState extends State<CrmScreen>
                               Icon(
                                 isHovered ? Icons.file_download_rounded : icon,
                                 size: 36,
-                                color: isHovered ? color : Colors.white12,
+                                color: isHovered ? color : const Color(0xFFCBD5E1),
                               ),
                               const SizedBox(height: 10),
                               Text(
@@ -5267,7 +5278,7 @@ class _CrmScreenState extends State<CrmScreen>
                                     : 'No leads in $title',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: isHovered ? color : Colors.white24,
+                                  color: isHovered ? color : const Color(0xFF94A3B8),
                                   fontSize: 12,
                                   fontWeight: isHovered ? FontWeight.bold : FontWeight.normal,
                                 ),
@@ -5333,20 +5344,20 @@ class _CrmScreenState extends State<CrmScreen>
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: isDragging
-              ? const Color(0xFF1E1E2A)
-              : const Color(0xFF181824),
+              ? const Color(0xFFF1F5F9)
+              : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isDragging
                 ? color
-                : Colors.white.withValues(alpha: 0.08),
+                : const Color(0xFFE2E8F0),
             width: isDragging ? 1.5 : 1.0,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.25),
-              blurRadius: 6,
-              offset: const Offset(0, 3),
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
             ),
           ],
         ),
@@ -5356,11 +5367,11 @@ class _CrmScreenState extends State<CrmScreen>
             // Top row: date & priority
             Row(
               children: [
-                const Icon(Icons.calendar_today_rounded, size: 11, color: Colors.white38),
+                const Icon(Icons.calendar_today_rounded, size: 11, color: Color(0xFF94A3B8)),
                 const SizedBox(width: 4),
                 Text(
                   dateStr,
-                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
                 ),
                 const Spacer(),
                 _priorityTag(deal.priority),
@@ -5385,7 +5396,7 @@ class _CrmScreenState extends State<CrmScreen>
             Text(
               deal.name,
               style: const TextStyle(
-                color: Colors.white,
+                color: Color(0xFF0F172A),
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
               ),
@@ -5406,13 +5417,13 @@ class _CrmScreenState extends State<CrmScreen>
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.phone_outlined, color: Colors.white38, size: 12),
+                        const Icon(Icons.phone_outlined, color: Color(0xFF94A3B8), size: 12),
                         const SizedBox(width: 4),
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 150),
                           child: Text(
                             deal.contactInfo!,
-                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            style: const TextStyle(color: Color(0xFF334155), fontSize: 12),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -5449,13 +5460,13 @@ class _CrmScreenState extends State<CrmScreen>
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.location_on_outlined, color: Colors.white38, size: 12),
+                        const Icon(Icons.location_on_outlined, color: Color(0xFF94A3B8), size: 12),
                         const SizedBox(width: 4),
                         ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 150),
                           child: Text(
                             deal.company!,
-                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            style: const TextStyle(color: Color(0xFF334155), fontSize: 12),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -5538,21 +5549,21 @@ class _CrmScreenState extends State<CrmScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0284C7).withValues(alpha: 0.14),
+                  color: const Color(0xFF0284C7).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.3)),
+                  border: Border.all(color: const Color(0xFF0284C7).withValues(alpha: 0.25)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.campaign_outlined, size: 11, color: Color(0xFF38BDF8)),
+                    const Icon(Icons.campaign_outlined, size: 11, color: Color(0xFF0284C7)),
                     const SizedBox(width: 4),
                     ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 240),
                       child: Text(
                         cardSource,
                         style: const TextStyle(
-                          color: Color(0xFF38BDF8),
+                          color: Color(0xFF0284C7),
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
                         ),
@@ -5572,8 +5583,8 @@ class _CrmScreenState extends State<CrmScreen>
                 cardNotes,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
                   fontSize: 11,
                   fontStyle: FontStyle.italic,
                 ),
@@ -5586,19 +5597,19 @@ class _CrmScreenState extends State<CrmScreen>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                  color: const Color(0xFFDC2626).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                  border: Border.all(color: const Color(0xFFDC2626).withValues(alpha: 0.25)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.cancel_outlined, size: 12, color: Color(0xFFF87171)),
+                    const Icon(Icons.cancel_outlined, size: 12, color: Color(0xFFDC2626)),
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
                         'Reason: ${deal.adjournedReason}',
                         style: const TextStyle(
-                          color: Color(0xFFF87171),
+                          color: Color(0xFFDC2626),
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
@@ -5624,7 +5635,7 @@ class _CrmScreenState extends State<CrmScreen>
             ],
 
             const SizedBox(height: 8),
-            const Divider(color: Colors.white10, height: 1),
+            const Divider(color: Color(0xFFE2E8F0), height: 1),
             const SizedBox(height: 8),
 
             // Actions row
@@ -5657,13 +5668,13 @@ class _CrmScreenState extends State<CrmScreen>
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
                         color: deal.postponedDate != null
-                            ? const Color(0xFFF59E0B).withValues(alpha: 0.18)
-                            : Colors.white.withValues(alpha: 0.06),
+                            ? const Color(0xFFFEF3C7)
+                            : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: deal.postponedDate != null
-                              ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
-                              : Colors.white.withValues(alpha: 0.12),
+                              ? const Color(0xFFF59E0B)
+                              : const Color(0xFFCBD5E1),
                         ),
                       ),
                       child: Row(
@@ -5672,14 +5683,14 @@ class _CrmScreenState extends State<CrmScreen>
                           Icon(
                             Icons.event_note_rounded,
                             size: 13,
-                            color: deal.postponedDate != null ? const Color(0xFFF59E0B) : Colors.white70,
+                            color: deal.postponedDate != null ? const Color(0xFFB45309) : const Color(0xFF475569),
                           ),
                           const SizedBox(width: 4),
                           Text(
                             'Follow-up',
                             style: TextStyle(
                               fontSize: 11,
-                              color: deal.postponedDate != null ? const Color(0xFFF59E0B) : Colors.white70,
+                              color: deal.postponedDate != null ? const Color(0xFFB45309) : const Color(0xFF475569),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -5727,10 +5738,10 @@ class _CrmScreenState extends State<CrmScreen>
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B).withValues(alpha: 0.18),
+                        color: const Color(0xFFFEF3C7),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: const Color(0xFFF59E0B).withValues(alpha: 0.35),
+                          color: const Color(0xFFF59E0B),
                         ),
                       ),
                       child: const Row(
@@ -5739,14 +5750,14 @@ class _CrmScreenState extends State<CrmScreen>
                           Icon(
                             Icons.alarm_on_rounded,
                             size: 13,
-                            color: Color(0xFFF59E0B),
+                            color: Color(0xFFB45309),
                           ),
                           SizedBox(width: 4),
                           Text(
                             'Reschedule',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Color(0xFFF59E0B),
+                              color: Color(0xFFB45309),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -5794,7 +5805,7 @@ class _CrmScreenState extends State<CrmScreen>
                   const Spacer(),
                   IconButton(
                     onPressed: () => _openDeal(deal),
-                    icon: const Icon(Icons.open_in_new, size: 14, color: Colors.white60),
+                    icon: const Icon(Icons.open_in_new, size: 14, color: Color(0xFF64748B)),
                     tooltip: 'Open in Detail',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
@@ -5878,13 +5889,13 @@ class _CrmScreenState extends State<CrmScreen>
             const SizedBox(height: 24),
             const Text(
               'CRM Lead Pipeline',
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(color: Color(0xFF0F172A), fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             const Text(
               'Leads created in CRM remain here as inquiries.\nOnly when a lead is passed to work does it appear in Client and Work Management.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white54, fontSize: 13, height: 1.5),
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 13, height: 1.5),
             ),
             const SizedBox(height: 28),
             Row(
@@ -5894,7 +5905,7 @@ class _CrmScreenState extends State<CrmScreen>
                   onPressed: _createNewDeal,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primaryColor,
-                    foregroundColor: Colors.black,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -5905,8 +5916,8 @@ class _CrmScreenState extends State<CrmScreen>
                 OutlinedButton.icon(
                   onPressed: _showImportToCrmDialog,
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                    foregroundColor: const Color(0xFF334155),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
                     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -5930,16 +5941,16 @@ class _CrmScreenState extends State<CrmScreen>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.search_off_rounded, color: Colors.white24, size: 48),
+            const Icon(Icons.search_off_rounded, color: Color(0xFF94A3B8), size: 48),
             const SizedBox(height: 12),
             Text(
               _searchQuery.isNotEmpty ? 'No leads found matching "$_searchQuery"' : 'No leads found',
-              style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(color: Color(0xFF334155), fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             const Text(
               'Try searching with another name, phone number, work type, or inquiry note.',
-              style: TextStyle(color: Colors.white38, fontSize: 13),
+              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
             ),
             if (_searchQuery.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -5994,9 +6005,16 @@ class _CrmScreenState extends State<CrmScreen>
         margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.03),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -6019,7 +6037,7 @@ class _CrmScreenState extends State<CrmScreen>
                         child: Text(
                           deal.name,
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: Color(0xFF0F172A),
                             fontWeight: FontWeight.w600,
                             fontSize: 14,
                           ),
@@ -6054,11 +6072,11 @@ class _CrmScreenState extends State<CrmScreen>
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.phone_outlined, color: Colors.white38, size: 12),
+                            const Icon(Icons.phone_outlined, color: Color(0xFF94A3B8), size: 12),
                             const SizedBox(width: 4),
                             Text(
                               deal.contactInfo!,
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              style: const TextStyle(color: Color(0xFF334155), fontSize: 12),
                             ),
                             const SizedBox(width: 6),
                             InkWell(
@@ -6092,11 +6110,11 @@ class _CrmScreenState extends State<CrmScreen>
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.location_on_outlined, color: Colors.white38, size: 12),
+                            const Icon(Icons.location_on_outlined, color: Color(0xFF94A3B8), size: 12),
                             const SizedBox(width: 4),
                             Text(
                               deal.company!,
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              style: const TextStyle(color: Color(0xFF334155), fontSize: 12),
                             ),
                           ],
                         ),
@@ -6104,11 +6122,11 @@ class _CrmScreenState extends State<CrmScreen>
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.work_outline_rounded, color: Colors.white38, size: 12),
+                            const Icon(Icons.work_outline_rounded, color: Color(0xFF94A3B8), size: 12),
                             const SizedBox(width: 4),
                             Text(
                               deal.workType!,
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                              style: const TextStyle(color: Color(0xFF334155), fontSize: 12),
                             ),
                           ],
                         ),
@@ -6128,7 +6146,7 @@ class _CrmScreenState extends State<CrmScreen>
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.calendar_today_rounded, color: Colors.white38, size: 11),
+                            const Icon(Icons.calendar_today_rounded, color: Color(0xFF94A3B8), size: 11),
                             const SizedBox(width: 4),
                             Text(
                               () {
@@ -6141,7 +6159,7 @@ class _CrmScreenState extends State<CrmScreen>
                                     ? 'Today, ${DateFormat('hh:mm a').format(createdIst)}'
                                     : DateFormat('dd MMM yyyy').format(createdIst);
                               }(),
-                              style: const TextStyle(color: Colors.white54, fontSize: 11.5),
+                              style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
                             ),
                           ],
                         ),
@@ -6152,12 +6170,12 @@ class _CrmScreenState extends State<CrmScreen>
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.campaign_outlined, size: 11, color: Color(0xFF38BDF8)),
+                        const Icon(Icons.campaign_outlined, size: 11, color: Color(0xFF0284C7)),
                         const SizedBox(width: 4),
                         Text(
                           listSource,
                           style: const TextStyle(
-                            color: Color(0xFF38BDF8),
+                            color: Color(0xFF0284C7),
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
@@ -6171,8 +6189,8 @@ class _CrmScreenState extends State<CrmScreen>
                       listNotes,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.4),
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
                         fontSize: 11,
                         fontStyle: FontStyle.italic,
                       ),
@@ -6227,13 +6245,13 @@ class _CrmScreenState extends State<CrmScreen>
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                         decoration: BoxDecoration(
                           color: deal.postponedDate != null
-                              ? const Color(0xFFF59E0B).withValues(alpha: 0.18)
-                              : Colors.white.withValues(alpha: 0.06),
+                              ? const Color(0xFFFEF3C7)
+                              : const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: deal.postponedDate != null
-                                ? const Color(0xFFF59E0B).withValues(alpha: 0.35)
-                                : Colors.white.withValues(alpha: 0.12),
+                                ? const Color(0xFFF59E0B)
+                                : const Color(0xFFCBD5E1),
                           ),
                         ),
                         child: Row(
@@ -6242,14 +6260,14 @@ class _CrmScreenState extends State<CrmScreen>
                             Icon(
                               Icons.event_note_rounded,
                               size: 13,
-                              color: deal.postponedDate != null ? const Color(0xFFF59E0B) : Colors.white70,
+                              color: deal.postponedDate != null ? const Color(0xFFB45309) : const Color(0xFF475569),
                             ),
                             const SizedBox(width: 4),
                             Text(
                               'Follow-up',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: deal.postponedDate != null ? const Color(0xFFF59E0B) : Colors.white70,
+                                color: deal.postponedDate != null ? const Color(0xFFB45309) : const Color(0xFF475569),
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -6339,7 +6357,7 @@ class _CrmScreenState extends State<CrmScreen>
               ],
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
+            const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1), size: 20),
           ],
         ),
       ),
@@ -6443,9 +6461,9 @@ class _CrmScreenState extends State<CrmScreen>
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF13131A),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -6461,7 +6479,7 @@ class _CrmScreenState extends State<CrmScreen>
                       Text(
                         stage,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Color(0xFF0F172A),
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                         ),
@@ -6469,7 +6487,7 @@ class _CrmScreenState extends State<CrmScreen>
                       const Spacer(),
                       Text(
                         '$count leads',
-                        style: const TextStyle(color: Colors.white38, fontSize: 12),
+                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
                       ),
                       const SizedBox(width: 12),
                       Text(
@@ -6487,7 +6505,7 @@ class _CrmScreenState extends State<CrmScreen>
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
                       value: ratio.clamp(0.0, 1.0),
-                      backgroundColor: Colors.white.withValues(alpha: 0.06),
+                      backgroundColor: const Color(0xFFF1F5F9),
                       valueColor: AlwaysStoppedAnimation<Color>(color),
                       minHeight: 6,
                     ),
@@ -6506,9 +6524,16 @@ class _CrmScreenState extends State<CrmScreen>
       width: 160,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF13131A),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -6527,7 +6552,7 @@ class _CrmScreenState extends State<CrmScreen>
             style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
         ],
       ),
     ).animate().fadeIn().slideY(begin: 0.2);
@@ -6544,8 +6569,8 @@ class _CrmScreenState extends State<CrmScreen>
             borderRadius: BorderRadius.circular(4),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryColor.withValues(alpha: 0.5),
-                blurRadius: 8,
+                color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                blurRadius: 6,
               )
             ],
           ),
@@ -6554,7 +6579,7 @@ class _CrmScreenState extends State<CrmScreen>
         Text(
           title.toUpperCase(),
           style: const TextStyle(
-            color: Colors.white,
+            color: Color(0xFF0F172A),
             fontSize: 13,
             fontWeight: FontWeight.w800,
             letterSpacing: 1.5,
@@ -6582,7 +6607,7 @@ class _CrmScreenState extends State<CrmScreen>
           const SizedBox(height: 12),
           Text(
             _errorMessage ?? 'An error occurred',
-            style: const TextStyle(color: Colors.white54, fontSize: 14),
+            style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
             textAlign: TextAlign.center,
           ),
         ],
