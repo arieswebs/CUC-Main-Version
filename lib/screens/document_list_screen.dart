@@ -81,6 +81,8 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
       final newDealMappings = <String, String>{};
       for (var deal in dealsRes.data?.items ?? []) {
         if (deal != null && deal.drive_link != null && deal.drive_link!.isNotEmpty) {
+          final isCrm = (deal.pipeline ?? '').toLowerCase() == 'crm' || (deal.pipeline ?? '').toLowerCase() == 'lead';
+          if (isCrm && deal.is_won != true) continue;
           newDealMappings[deal.drive_link!] = deal.name;
         }
       }
@@ -118,7 +120,12 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
     List<Deal> deals = [];
     try {
       clients = await ClientService().getAllClients();
-      deals = await DealService().getAllDeals();
+      final allDeals = await DealService().getAllDeals();
+      deals = allDeals.where((d) {
+        final isCrm = d.pipeline.toLowerCase() == 'crm' || d.pipeline.toLowerCase() == 'lead';
+        if (isCrm && !d.isWon) return false;
+        return true;
+      }).toList();
     } catch (e) {
       debugPrint('Error loading clients/deals: $e');
     }
@@ -419,7 +426,12 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
         List<Deal> deals = [];
         try {
           clients = await ClientService().getAllClients();
-          deals = await DealService().getAllDeals();
+          final allDeals = await DealService().getAllDeals();
+      deals = allDeals.where((d) {
+        final isCrm = d.pipeline.toLowerCase() == 'crm' || d.pipeline.toLowerCase() == 'lead';
+        if (isCrm && !d.isWon) return false;
+        return true;
+      }).toList();
         } catch (e) {}
         setState(() => _isLoading = false);
 

@@ -417,7 +417,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
       final dealsReq = ModelQueries.list(amplify_models.Deals.classType, where: dealsWhere, limit: 10000);
       final dealsRes = await Amplify.API.query(request: dealsReq).response;
-      dealsCount = dealsRes.data?.items.length ?? 0;
+      final dealsRaw = (dealsRes.data?.items ?? []).whereType<amplify_models.Deals>().toList();
+      dealsCount = dealsRaw.where((d) {
+        final isCrm = (d.pipeline ?? '').toLowerCase() == 'crm' || (d.pipeline ?? '').toLowerCase() == 'lead';
+        if (isCrm && d.is_won != true) return false;
+        return true;
+      }).length;
 
       // 4. Bills to Receive (Only pending INVOICES)
       final billsReq = ModelQueries.list(
@@ -1215,7 +1220,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 'Work Management':
         final req = ModelQueries.list(amplify_models.Deals.classType, where: amplify_models.Deals.STAGE.ne('Completed'), limit: 10000);
         final res = await Amplify.API.query(request: req).response;
-        final list = (res.data?.items ?? []).whereType<amplify_models.Deals>().toList() ?? [];
+        final list = (res.data?.items ?? []).whereType<amplify_models.Deals>().where((d) {
+          final isCrm = (d.pipeline ?? '').toLowerCase() == 'crm' || (d.pipeline ?? '').toLowerCase() == 'lead';
+          if (isCrm && d.is_won != true) return false;
+          return true;
+        }).toList();
         list.sort((a, b) => (b.updatedAt?.getDateTimeInUtc() ?? DateTime.now()).compareTo(a.updatedAt?.getDateTimeInUtc() ?? DateTime.now()));
         return list.take(20).map((l) => l.toJson()).toList();
         

@@ -50,7 +50,12 @@ class _ClientDealsViewState extends State<ClientDealsView> {
         final billsRes = await Amplify.API.query(request: billsReq).response;
         final clientBills = (billsRes.data?.items ?? []).whereType<Billings>().toList() ?? [];
 
-        final fetchedDeals = (response.data?.items ?? []).whereType<Deals>().toList() ?? [];
+        final rawDeals = (response.data?.items ?? []).whereType<Deals>().toList();
+        final fetchedDeals = rawDeals.where((d) {
+          final isCrm = (d.pipeline ?? '').toLowerCase() == 'crm' || (d.pipeline ?? '').toLowerCase() == 'lead';
+          if (isCrm && d.is_won != true) return false;
+          return true;
+        }).toList();
         final Map<String, double> paidAmounts = {};
 
         for (final deal in fetchedDeals) {

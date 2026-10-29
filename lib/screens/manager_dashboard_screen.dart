@@ -263,7 +263,12 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       
       final worksRes = await Amplify.API.query(request: ModelQueries.list(amplify_models.Deals.classType, limit: 10000, where: amplify_models.Deals.STAGE.ne('Completed'), authorizationMode: APIAuthorizationType.userPools)).response;
       debugPrint('DEBUG: worksRes fetched');
-      final pendingWorksCount = (worksRes.data?.items ?? []).length;
+      final rawWorks = (worksRes.data?.items ?? []).whereType<amplify_models.Deals>().toList();
+      final pendingWorksCount = rawWorks.where((d) {
+        final isCrm = (d.pipeline ?? '').toLowerCase() == 'crm' || (d.pipeline ?? '').toLowerCase() == 'lead';
+        if (isCrm && d.is_won != true) return false;
+        return true;
+      }).length;
       
       final companyBillsRes = await Amplify.API.query(request: ModelQueries.list(amplify_models.CompanyBills.classType, limit: 10000, authorizationMode: APIAuthorizationType.userPools)).response;
       debugPrint('DEBUG: companyBillsRes fetched');
@@ -1536,7 +1541,11 @@ class _ManagerDashboardScreenState extends State<ManagerDashboardScreen> {
       case 'Work Management':
         final req = ModelQueries.list(amplify_models.Deals.classType, where: amplify_models.Deals.STAGE.ne('Completed'), limit: 10000);
         final res = await Amplify.API.query(request: req).response;
-        final list = (res.data?.items ?? []).whereType<amplify_models.Deals>().toList() ?? [];
+        final list = (res.data?.items ?? []).whereType<amplify_models.Deals>().where((d) {
+          final isCrm = (d.pipeline ?? '').toLowerCase() == 'crm' || (d.pipeline ?? '').toLowerCase() == 'lead';
+          if (isCrm && d.is_won != true) return false;
+          return true;
+        }).toList();
         list.sort((a, b) => (b.id).compareTo(a.id));
         return list.map((l) => l.toJson()).toList();
         
