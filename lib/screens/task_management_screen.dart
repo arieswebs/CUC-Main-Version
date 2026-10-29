@@ -1,6 +1,7 @@
 import 'package:amplify_api/amplify_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:collection/collection.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
 import '../models/ModelProvider.dart' as amplify_models;
 import '../services/logging_service.dart';
@@ -26,6 +27,8 @@ class TaskManagementScreen extends StatefulWidget {
 
 class _TaskManagementScreenState extends State<TaskManagementScreen> with SingleTickerProviderStateMixin {
   final _auth = AuthService();
+  static final DateTime nov1Cutoff = DateTime(2026, 11, 1);
+  String _selectedPeriod = '2026-2027'; // Starts fresh from Nov 1, 2026
   
   late TabController _tabController;
   
@@ -36,6 +39,23 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
   List<Task> _myTasks = [];
   List<Task> _delegatedTasks = [];
   List<Task> _allTasks = []; // For Admins
+  List<amplify_models.Tasks> _rawTasks = [];
+
+  DateTime _getTaskDate(Task t) {
+    if (t.createdAt != null && t.createdAt!.isNotEmpty) {
+      final parsed = DateTime.tryParse(t.createdAt!);
+      if (parsed != null) return parsed.toLocal();
+    }
+    if (t.dueDate != null && t.dueDate!.isNotEmpty) {
+      final parsed = DateTime.tryParse(t.dueDate!);
+      if (parsed != null) return parsed.toLocal();
+    }
+    return DateTime(2000);
+  }
+
+  int get _count2025_2026 => _allTasks.where((t) => _getTaskDate(t).isBefore(nov1Cutoff)).length;
+  int get _count2026_2027 => _allTasks.where((t) => !_getTaskDate(t).isBefore(nov1Cutoff)).length;
+  int get _countAll => _allTasks.length;
 
   List<Map<String, dynamic>> _allUsers = [];
   List<amplify_models.Clients> _allClients = [];
@@ -124,7 +144,7 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
     try {
       final req = ModelQueries.list(amplify_models.Clients.classType, limit: 10000);
       final res = await Amplify.API.query(request: req).response;
-      final clients = (res.data?.items ?? []).whereType<amplify_models.Clients>().toList() ?? [];
+      final clients = (res.data?.items ?? []).whereType<amplify_models.Clients>().toList();
       clients.sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
       if (mounted) setState(() => _allClients = clients);
     } catch (_) {}
@@ -134,7 +154,7 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
     try {
       final req = ModelQueries.list(amplify_models.Users.classType, limit: 10000);
       final res = await Amplify.API.query(request: req).response;
-      var items = (res.data?.items ?? []).whereType<amplify_models.Users>().toList() ?? [];
+      var items = (res.data?.items ?? []).whereType<amplify_models.Users>().toList();
       final Map<String, amplify_models.Users> uniqueUsers = {};
       for (var user in items) {
         final name = (user.name ?? '').trim();
@@ -180,8 +200,8 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
       }).toList();
       
       tasks.sort((a, b) {
-        final dateA = a.createdAt?.getDateTimeInUtc() ?? DateTime(2000);
-        final dateB = b.createdAt?.getDateTimeInUtc() ?? DateTime(2000);
+        final dateA = (a.created_at != null && a.created_at!.isNotEmpty ? DateTime.tryParse(a.created_at!) : null) ?? a.createdAt?.getDateTimeInUtc() ?? DateTime(2000);
+        final dateB = (b.created_at != null && b.created_at!.isNotEmpty ? DateTime.tryParse(b.created_at!) : null) ?? b.createdAt?.getDateTimeInUtc() ?? DateTime(2000);
         return dateB.compareTo(dateA);
       });
       
@@ -203,7 +223,7 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
           'assigned_to': m.assigned_to,
           'status': m.status,
           'due_date': m.due_date,
-          'created_at': m.createdAt?.getDateTimeInUtc().toIso8601String(),
+          'created_at': (m.created_at != null && m.created_at!.isNotEmpty) ? m.created_at : m.createdAt?.getDateTimeInUtc().toIso8601String(),
           'location': m.location,
           'client_name': m.client_name,
           'phone_number': m.phone_number,
@@ -215,6 +235,7 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
 
       if (mounted) {
         setState(() {
+          _rawTasks = tasks;
           _allTasks = parsedTasks;
           if (_currentUserId != null) {
             _myTasks = parsedTasks.where((t) => t.assignedTo?.toString() == _currentUserId?.toString()).toList();
@@ -230,6 +251,561 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _importSingleTaskToCurrent(Task task) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.drive_file_move_rounded, color: Color(0xFF10B981)),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('Import to Current Period?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+        content: Text(
+          'Do you want to import "${task.title}" into the current period (2026-2027)?\n\nIts record will be updated to start from the current period.',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF334155)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.drive_file_move_rounded, size: 16),
+            label: const Text('Import to 2026-2027'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final targetDate = DateTime.now().isBefore(nov1Cutoff)
+          ? DateTime(2026, 11, 1, 0, 0, 1)
+          : DateTime.now();
+      final targetDateStr = targetDate.toIso8601String();
+
+      final raw = _rawTasks.firstWhereOrNull((m) => m.id == task.id.toString());
+      if (raw != null) {
+        final updated = raw.copyWith(created_at: targetDateStr);
+        await BackupAwareApi().update(updated);
+      } else {
+        final req = ModelQueries.list(amplify_models.Tasks.classType, where: amplify_models.Tasks.ID.eq(task.id.toString()), limit: 10000);
+        final res = await Amplify.API.query(request: req).response;
+        if (res.data?.items.isNotEmpty == true) {
+          final updated = res.data!.items.first!.copyWith(created_at: targetDateStr);
+          await BackupAwareApi().update(updated);
+        }
+      }
+
+      await LoggingService().logAction(
+        action: 'TASK_IMPORTED',
+        targetType: 'Task',
+        targetId: task.title,
+        details: 'Imported delivery/task "${task.title}" to 2026-2027 period',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully imported "${task.title}" to 2026-2027!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {
+          _selectedPeriod = '2026-2027';
+        });
+        await _fetchTasks();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error importing task: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _showImportToCurrentDialog() async {
+    final candidates = _allTasks.where((t) => _getTaskDate(t).isBefore(nov1Cutoff)).toList();
+    if (candidates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No 2025-2026 deliveries/tasks available to import.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final searchCtrl = TextEditingController();
+    final selectedIds = <dynamic>{};
+    bool isImporting = false;
+    int importedCount = 0;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final query = searchCtrl.text.toLowerCase().trim();
+          final displayed = query.isEmpty
+              ? candidates
+              : candidates.where((t) =>
+                  t.title.toLowerCase().contains(query) ||
+                  (t.clientName?.toLowerCase().contains(query) ?? false) ||
+                  (t.location?.toLowerCase().contains(query) ?? false) ||
+                  (t.assignedToName?.toLowerCase().contains(query) ?? false)
+                ).toList();
+
+          final allDisplayedSelected = displayed.isNotEmpty && displayed.every((t) => selectedIds.contains(t.id));
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620, maxHeight: 680),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.drive_file_move_rounded, color: Color(0xFF10B981), size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Import Deliveries to Current',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Select deliveries/tasks from 2025-2026 to carry forward into 2026-2027',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: isImporting ? null : () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: searchCtrl,
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'Search deliveries, pickups, client, location...',
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF10B981))),
+                        fillColor: const Color(0xFFF8FAFC),
+                        filled: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Text(
+                          '${selectedIds.length} selected of ${candidates.length} deliveries',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: isImporting
+                              ? null
+                              : () {
+                                  setDialogState(() {
+                                    if (allDisplayedSelected) {
+                                      for (var t in displayed) {
+                                        selectedIds.remove(t.id);
+                                      }
+                                    } else {
+                                      for (var t in displayed) {
+                                        if (t.id != null) selectedIds.add(t.id);
+                                      }
+                                    }
+                                  });
+                                },
+                          child: Text(
+                            allDisplayedSelected ? 'Deselect All' : 'Select All',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 1),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: displayed.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.inventory_2_outlined, size: 40, color: Colors.grey.shade300),
+                                  const SizedBox(height: 8),
+                                  Text('No matching deliveries found', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: displayed.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 6),
+                              itemBuilder: (context, i) {
+                                final t = displayed[i];
+                                final isChecked = selectedIds.contains(t.id);
+                                final date = _getTaskDate(t);
+                                final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+                                return Material(
+                                  color: isChecked ? const Color(0xFF10B981).withValues(alpha: 0.08) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: isImporting
+                                        ? null
+                                        : () {
+                                            setDialogState(() {
+                                              if (isChecked) {
+                                                selectedIds.remove(t.id);
+                                              } else {
+                                                if (t.id != null) selectedIds.add(t.id);
+                                              }
+                                            });
+                                          },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      child: Row(
+                                        children: [
+                                          Checkbox(
+                                            value: isChecked,
+                                            activeColor: const Color(0xFF10B981),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                            onChanged: isImporting
+                                                ? null
+                                                : (val) {
+                                                    setDialogState(() {
+                                                      if (val == true) {
+                                                        if (t.id != null) selectedIds.add(t.id);
+                                                      } else {
+                                                        selectedIds.remove(t.id);
+                                                      }
+                                                    });
+                                                  },
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  t.title,
+                                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  '${t.clientName?.isNotEmpty == true ? "Client: ${t.clientName} • " : ""}${t.assignedToName?.isNotEmpty == true ? "Assigned: ${t.assignedToName} • " : ""}Status: ${t.status} • Date: $dateStr',
+                                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (isImporting)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981))),
+                            const SizedBox(width: 12),
+                            Text('Importing $importedCount of ${selectedIds.length}...', style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
+                          ],
+                        ),
+                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: isImporting ? null : () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: (selectedIds.isEmpty || isImporting)
+                              ? null
+                              : () async {
+                                  setDialogState(() {
+                                    isImporting = true;
+                                    importedCount = 0;
+                                  });
+
+                                  final targetDate = DateTime.now().isBefore(nov1Cutoff)
+                                      ? DateTime(2026, 11, 1, 0, 0, 1)
+                                      : DateTime.now();
+                                  final targetDateStr = targetDate.toIso8601String();
+
+                                  for (final id in selectedIds) {
+                                    final match = candidates.firstWhereOrNull((t) => t.id == id);
+                                    if (match != null) {
+                                      try {
+                                        final raw = _rawTasks.firstWhereOrNull((m) => m.id == match.id.toString());
+                                        if (raw != null) {
+                                          final updated = raw.copyWith(created_at: targetDateStr);
+                                          await BackupAwareApi().update(updated);
+                                        } else {
+                                          final req = ModelQueries.list(amplify_models.Tasks.classType, where: amplify_models.Tasks.ID.eq(match.id.toString()), limit: 10000);
+                                          final res = await Amplify.API.query(request: req).response;
+                                          if (res.data?.items.isNotEmpty == true) {
+                                            final updated = res.data!.items.first!.copyWith(created_at: targetDateStr);
+                                            await BackupAwareApi().update(updated);
+                                          }
+                                        }
+                                        await LoggingService().logAction(
+                                          action: 'TASK_IMPORTED',
+                                          targetType: 'Task',
+                                          targetId: match.title,
+                                          details: 'Imported delivery/task "${match.title}" to 2026-2027 period',
+                                        );
+                                      } catch (e) {
+                                        debugPrint('Error importing task ${match.title}: $e');
+                                      }
+                                    }
+                                    setDialogState(() {
+                                      importedCount++;
+                                    });
+                                  }
+
+                                  if (ctx.mounted) Navigator.pop(ctx);
+
+                                  if (mounted) {
+                                    setState(() {
+                                      _selectedPeriod = '2026-2027';
+                                    });
+                                    await _fetchTasks();
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Successfully imported ${selectedIds.length} delivery/task(s) into 2026-2027!'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                  }
+                                },
+                          icon: const Icon(Icons.drive_file_move_rounded, size: 18),
+                          label: Text(
+                            selectedIds.isEmpty ? 'Select Deliveries to Import' : 'Import (${selectedIds.length})',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _buildPeriodChip(
+            id: '2026-2027',
+            title: '2026-2027 (Current)',
+            subtitle: 'From Nov 1, 2026',
+            icon: Icons.fiber_new_rounded,
+            count: _count2026_2027,
+            activeColor: const Color(0xFF10B981),
+          ),
+          _buildPeriodChip(
+            id: '2025-2026',
+            title: '2025-2026',
+            subtitle: 'Till Nov 1, 2026',
+            icon: Icons.history_rounded,
+            count: _count2025_2026,
+            activeColor: const Color(0xFF6366F1),
+          ),
+          _buildPeriodChip(
+            id: 'All',
+            title: 'All Deliveries',
+            subtitle: 'Complete Archive',
+            icon: Icons.inventory_2_rounded,
+            count: _countAll,
+            activeColor: AppTheme.primaryColor,
+          ),
+          if (_count2025_2026 > 0)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: ElevatedButton.icon(
+                onPressed: _showImportToCurrentDialog,
+                icon: const Icon(Icons.drive_file_move_outlined, size: 16),
+                label: const Text('Import to Current', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodChip({
+    required String id,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required int count,
+    required Color activeColor,
+  }) {
+    final isSelected = _selectedPeriod == id;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedPeriod = id;
+        });
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF94A3B8),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withValues(alpha: 0.25) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _updateTaskStatus(Task task, String newStatus) async {
@@ -755,7 +1331,9 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
               ],
             ),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+          _buildPeriodSelector(),
+          const SizedBox(height: 8),
           if (_isAdmin)
             TabBar(
               controller: _tabController,
@@ -842,8 +1420,15 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
   }
 
   Widget _buildTaskList(List<Task> tasks, bool isWide, {required bool isMyTask}) {
+    List<Task> periodFiltered = tasks;
+    if (_selectedPeriod == '2025-2026') {
+      periodFiltered = periodFiltered.where((t) => _getTaskDate(t).isBefore(nov1Cutoff)).toList();
+    } else if (_selectedPeriod == '2026-2027') {
+      periodFiltered = periodFiltered.where((t) => !_getTaskDate(t).isBefore(nov1Cutoff)).toList();
+    }
+
     final searchTerm = _searchController.text.toLowerCase();
-    final filteredTasks = tasks.where((t) {
+    final filteredTasks = periodFiltered.where((t) {
       final matchesSearch = t.title.toLowerCase().contains(searchTerm) || 
                             (t.description?.toLowerCase().contains(searchTerm) ?? false) ||
                             (t.clientName?.toLowerCase().contains(searchTerm) ?? false) ||
@@ -853,13 +1438,90 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
     }).toList();
 
     if (filteredTasks.isEmpty) {
+      if (_selectedPeriod == '2026-2027') {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.auto_awesome_rounded, size: 48, color: Color(0xFF10B981)),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Fresh Start: 2026-2027',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Starting fresh from Nov 1, 2026! No deliveries or tasks created yet.\nPrevious deliveries are safely archived in the "2025-2026" button ($_count2025_2026 deliveries).',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _selectedPeriod = '2025-2026';
+                      });
+                    },
+                    icon: const Icon(Icons.history_rounded, size: 18),
+                    label: Text('Open 2025-2026 Deliveries ($_count2025_2026)'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 2,
+                    ),
+                  ),
+                  if (_count2025_2026 > 0)
+                    ElevatedButton.icon(
+                      onPressed: _showImportToCurrentDialog,
+                      icon: const Icon(Icons.drive_file_move_rounded, size: 18),
+                      label: const Text('Import from 2025-2026'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF10B981),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        elevation: 2,
+                      ),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: () => _showTaskDialog(),
+                    icon: const Icon(Icons.add_task, size: 18),
+                    label: const Text('Assign Delivery/Pickup'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.primaryColor,
+                      side: const BorderSide(color: AppTheme.primaryColor),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      }
+
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.assignment_turned_in_outlined, size: 80, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            Text(_searchController.text.isEmpty && _statusFilter == 'All' ? 'No deliveries or pickups found!' : 'No matching deliveries/pickups!', style: TextStyle(color: Colors.grey.shade500, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(_searchController.text.isEmpty && _statusFilter == 'All' ? 'No deliveries or pickups found for this period!' : 'No matching deliveries/pickups!', style: TextStyle(color: Colors.grey.shade500, fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
       );
@@ -1003,6 +1665,12 @@ class _TaskManagementScreenState extends State<TaskManagementScreen> with Single
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (_getTaskDate(t).isBefore(nov1Cutoff))
+          IconButton(
+            onPressed: () => _importSingleTaskToCurrent(t),
+            icon: const Icon(Icons.drive_file_move_outlined, color: Color(0xFF10B981)),
+            tooltip: 'Import to Current (2026-2027)',
+          ),
         if (!isMyTask || _isAdmin) ...[
           IconButton(onPressed: () => _showTaskDialog(t), icon: const Icon(Icons.edit, color: Colors.grey)),
           IconButton(onPressed: () => _deleteTask(t.id!), icon: const Icon(Icons.delete, color: Colors.redAccent)),

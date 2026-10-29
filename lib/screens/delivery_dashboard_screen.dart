@@ -31,6 +31,8 @@ class DeliveryDashboardScreen extends StatefulWidget {
 }
 
 class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
+  static final DateTime nov1Cutoff = DateTime(2026, 11, 1);
+  String _selectedPeriod = '2026-2027'; // Starts fresh from Nov 1, 2026
   int _selectedIndex = 0;
   String _userName = 'User';
   int _pendingTasks = 0;
@@ -234,11 +236,21 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
 
       final req = ModelQueries.list(amplify_models.Tasks.classType, where: amplify_models.Tasks.ASSIGNED_TO.eq(userId), limit: 10000);
       final res = await Amplify.API.query(request: req).response;
-      final tasksList = (res.data?.items ?? []).whereType<amplify_models.Tasks>().toList() ?? [];
+      final tasksList = (res.data?.items ?? []).whereType<amplify_models.Tasks>().toList();
 
       int pending = 0;
       int completed = 0;
       for (var row in tasksList) {
+        DateTime date = DateTime(2000);
+        if (row.created_at != null && row.created_at!.isNotEmpty) {
+          date = DateTime.tryParse(row.created_at!) ?? date;
+        } else if (row.createdAt != null) {
+          date = row.createdAt!.getDateTimeInUtc().toLocal();
+        }
+
+        if (_selectedPeriod == '2025-2026' && !date.isBefore(nov1Cutoff)) continue;
+        if (_selectedPeriod == '2026-2027' && date.isBefore(nov1Cutoff)) continue;
+
         final status = row.status?.toString();
         if (status == 'Completed') {
           completed++;
@@ -254,6 +266,96 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
         });
       }
     } catch (_) {}
+  }
+
+  Widget _buildPeriodSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          _buildPeriodChip(
+            id: '2026-2027',
+            title: '2026-2027 (Current)',
+            icon: Icons.fiber_new_rounded,
+            activeColor: const Color(0xFF10B981),
+          ),
+          _buildPeriodChip(
+            id: '2025-2026',
+            title: '2025-2026',
+            icon: Icons.history_rounded,
+            activeColor: const Color(0xFF6366F1),
+          ),
+          _buildPeriodChip(
+            id: 'All',
+            title: 'All Deliveries',
+            icon: Icons.inventory_2_rounded,
+            activeColor: AppTheme.primaryColor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodChip({
+    required String id,
+    required String title,
+    required IconData icon,
+    required Color activeColor,
+  }) {
+    final isSelected = _selectedPeriod == id;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedPeriod = id;
+        });
+        _fetchTaskStats();
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _handleLogout() async {
@@ -290,7 +392,9 @@ class _DeliveryDashboardScreenState extends State<DeliveryDashboardScreen> {
           
           // Fleet Banner
           _buildFleetBanner(),
-          const SizedBox(height: 32),
+          const SizedBox(height: 24),
+          _buildPeriodSelector(),
+          const SizedBox(height: 20),
           
           // Stats Cards
           if (MediaQuery.of(context).size.width > 600)

@@ -4,6 +4,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:amplify_api/amplify_api.dart';
+import 'package:amplify_flutter/amplify_flutter.dart';
+import '../models/ModelProvider.dart' as amplify_models;
+import '../services/supabase_backup_service.dart';
+import '../services/logging_service.dart';
 import '../theme.dart';
 import '../models/deal.dart';
 import '../models/deal_activity.dart';
@@ -23,6 +28,8 @@ class WorkManagementScreen extends StatefulWidget {
 class _WorkManagementScreenState extends State<WorkManagementScreen> {
   final _dealService = DealService();
   List<Deal> _allDeals = [];
+  List<amplify_models.Users> _allStaffList = [];
+  final Map<String, int> _staffIdMap = {};
   bool _isLoading = true;
 
   String _searchQuery = '';
@@ -39,7 +46,6 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
   bool _isBoardView = true;
   String? _selectedStaffFilter;
   int? _currentUserId;
-  bool _isManagerOrAdmin = false;
   StreamSubscription? _dealsSubscription;
   final ScrollController _boardScrollController = ScrollController();
 
@@ -55,6 +61,7 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
   void initState() {
     super.initState();
     _loadCurrentUserId();
+    _fetchStaff();
     _subscribeToDeals();
   }
 
@@ -86,6 +93,7 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
 
   Future<void> _refreshDeals() async {
     try {
+      _fetchStaff();
       final deals = await _dealService.getAllDeals();
       if (mounted) {
         setState(() {
@@ -97,6 +105,499 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
       debugPrint('Error refreshing deals: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _fetchStaff() async {
+    try {
+      final req = ModelQueries.list(amplify_models.Users.classType, limit: 10000);
+      final res = await Amplify.API.query(request: req).response;
+      final fetched = (res.data?.items ?? []).whereType<amplify_models.Users>().toList();
+      final sbUserMap = await SupabaseBackupService().getUsernameToIdMap();
+      
+      for (var staff in fetched) {
+        final intId = sbUserMap[staff.username] ?? sbUserMap[staff.email];
+        if (intId != null) {
+          _staffIdMap[staff.id] = intId;
+        }
+      }
+      
+      final deduplicated = <amplify_models.Users>[];
+      for (var staff in fetched) {
+        final name = (staff.name ?? staff.username ?? 'Unknown').trim();
+        final idx = deduplicated.indexWhere((s) => (s.name ?? s.username ?? '').trim().toLowerCase() == name.toLowerCase());
+        if (idx != -1) {
+          if ((staff.role ?? '').toLowerCase() == 'admin' || (staff.role ?? '').toLowerCase() == 'manager') {
+            deduplicated[idx] = staff;
+          }
+        } else {
+          deduplicated.add(staff);
+        }
+      }
+      deduplicated.sort((a, b) => (a.name ?? a.username ?? '').compareTo(b.name ?? b.username ?? ''));
+      if (mounted) setState(() => _allStaffList = deduplicated);
+    } catch (e) {
+      debugPrint('Error fetching staff in work_management_screen: $e');
+    }
+  }
+
+  Future<void> _showQuickAssignStaffDialog(Deal deal) async {
+    final searchCtrl = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final query = searchCtrl.text.toLowerCase().trim();
+          final filteredStaff = query.isEmpty
+              ? _allStaffList
+              : _allStaffList.where((s) =>
+                  (s.name?.toLowerCase().contains(query) ?? false) ||
+                  (s.username?.toLowerCase().contains(query) ?? false) ||
+                  (s.role?.toLowerCase().contains(query) ?? false)
+                ).toList();
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520, maxHeight: 620),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.assignment_ind_rounded, color: Color(0xFF2563EB), size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Mark Staff Doing Work',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Assign or reassign: "${deal.name}"',
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, size: 16, color: Color(0xFF64748B)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                  ? 'Currently Assigned to: ${deal.responsibleName}'
+                                  : 'Currently: Unassigned',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                    ? const Color(0xFF1E293B)
+                                    : Colors.amber.shade800,
+                              ),
+                            ),
+                          ),
+                          if (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                            TextButton.icon(
+                              onPressed: () async {
+                                Navigator.pop(ctx);
+                                await _assignStaffToDeal(deal, null);
+                              },
+                              icon: const Icon(Icons.person_remove_rounded, size: 14, color: Colors.red),
+                              label: const Text('Unassign', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: searchCtrl,
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'Search staff by name or role...',
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF2563EB))),
+                        fillColor: const Color(0xFFF8FAFC),
+                        filled: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Select Staff Member Doing Work:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: filteredStaff.isEmpty
+                          ? Center(
+                              child: Text('No staff members found', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                            )
+                          : ListView.separated(
+                              itemCount: filteredStaff.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 6),
+                              itemBuilder: (context, i) {
+                                final staff = filteredStaff[i];
+                                final staffName = (staff.name?.isNotEmpty == true
+                                    ? staff.name!
+                                    : (staff.username?.isNotEmpty == true ? staff.username! : 'Staff Member'));
+                                final isCurrent = (deal.responsibleName ?? '').toLowerCase() == staffName.toLowerCase();
+                                
+                                final firstWord = staffName.split(' ').first.toLowerCase();
+                                final staffWorksCount = _allDeals.where((d) {
+                                  final rName = (d.responsibleName ?? '').toLowerCase().trim();
+                                  return rName.isNotEmpty && (rName == staffName.toLowerCase() || rName.startsWith(firstWord));
+                                }).length;
+
+                                return Material(
+                                  color: isCurrent ? const Color(0xFF2563EB).withValues(alpha: 0.08) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: () async {
+                                      Navigator.pop(ctx);
+                                      await _assignStaffToDeal(deal, staff);
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 18,
+                                            backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                                            child: Text(
+                                              staffName.isNotEmpty ? staffName[0].toUpperCase() : '?',
+                                              style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB), fontSize: 14),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  staffName,
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 14,
+                                                    color: isCurrent ? const Color(0xFF2563EB) : const Color(0xFF1E293B),
+                                                  ),
+                                                ),
+                                                Text(
+                                                  staff.role ?? 'Staff Member',
+                                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFF1F5F9),
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(color: Colors.grey.shade300),
+                                            ),
+                                            child: Text(
+                                              '$staffWorksCount works',
+                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          if (isCurrent)
+                                            const Icon(Icons.check_circle_rounded, color: Color(0xFF2563EB), size: 20)
+                                          else
+                                            const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFFCBD5E1), size: 14),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _assignStaffToDeal(Deal deal, amplify_models.Users? staff) async {
+    setState(() => _isLoading = true);
+    try {
+      final int? staffIntId = staff != null ? (_staffIdMap[staff.id] ?? int.tryParse(staff.id)) : null;
+      final String? staffName = staff?.name ?? staff?.username;
+
+      final updatedDeal = deal.copyWith(
+        responsibleId: staffIntId,
+        responsibleName: staffName,
+      );
+      await _dealService.updateDeal(updatedDeal);
+
+      if (staffIntId != null && deal.id != null) {
+        try {
+          await _dealService.addAssignee(deal.id!, staffIntId, role: 'Lead');
+        } catch (_) {}
+      }
+
+      await LoggingService().logAction(
+        action: 'WORK_STAFF_ASSIGNED',
+        targetType: 'Deal',
+        targetId: deal.name,
+        details: staffName != null
+            ? 'Marked $staffName as doing work for "${deal.name}"'
+            : 'Unassigned staff from "${deal.name}"',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(staffName != null
+                ? 'Marked $staffName as doing work for "${deal.name}"!'
+                : 'Work "${deal.name}" is now unassigned.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        await _refreshDeals();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error assigning staff: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showStaffWorkloadTrackerDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: Colors.white,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580, maxHeight: 650),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.people_alt_rounded, color: Color(0xFF6366F1), size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Staff Workload Tracker',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Track who all are doing works across the firm',
+                            style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(height: 1),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      Builder(builder: (context) {
+                        final unassignedWorks = _allDeals.where((d) => d.responsibleName == null || d.responsibleName!.trim().isEmpty).toList();
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.amber.shade200),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: Colors.amber.shade200,
+                                child: const Icon(Icons.person_off_rounded, color: Colors.black87, size: 18),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('Unassigned Works', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF92400E))),
+                                    Text('Works requiring an assignee to be marked', style: TextStyle(fontSize: 11, color: Colors.amber.shade900)),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.shade200,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${unassignedWorks.length} works',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.amber.shade900),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  setState(() {
+                                    _selectedStaffFilter = 'Unassigned';
+                                    _showOnlyMyWorks = false;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: Colors.amber.shade700),
+                                  foregroundColor: Colors.amber.shade900,
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  minimumSize: Size.zero,
+                                ),
+                                child: const Text('View', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                      ..._allStaffList.map((staff) {
+                        final staffName = (staff.name?.isNotEmpty == true
+                            ? staff.name!
+                            : (staff.username?.isNotEmpty == true ? staff.username! : 'Staff Member'));
+                        final firstWord = staffName.split(' ').first;
+                        final staffWorks = _allDeals.where((d) {
+                          final rName = (d.responsibleName ?? '').toLowerCase().trim();
+                          return rName.isNotEmpty && (rName == staffName.toLowerCase() || rName.startsWith(firstWord.toLowerCase()));
+                        }).toList();
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                                child: Text(
+                                  staffName.isNotEmpty ? staffName[0].toUpperCase() : '?',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2563EB), fontSize: 14),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(staffName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B))),
+                                    Text(
+                                      staff.role ?? "Staff Member",
+                                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F5F9),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade300),
+                                ),
+                                child: Text(
+                                  '${staffWorks.length} works',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF1E293B)),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              OutlinedButton(
+                                onPressed: () {
+                                  Navigator.pop(ctx);
+                                  final formattedFirstWord = firstWord[0].toUpperCase() + firstWord.substring(1).toLowerCase();
+                                  setState(() {
+                                    _selectedStaffFilter = formattedFirstWord;
+                                    _showOnlyMyWorks = false;
+                                  });
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Color(0xFF2563EB)),
+                                  foregroundColor: const Color(0xFF2563EB),
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  minimumSize: Size.zero,
+                                ),
+                                child: const Text('View', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   void _openDealDetail([Deal? deal]) {
@@ -267,13 +768,17 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
     }
     
     if (_selectedStaffFilter != null) {
-      list = list.where((d) {
-        if (d.responsibleName == null || d.responsibleName!.trim().isEmpty) return false;
-        final firstWord = d.responsibleName!.trim().split(' ').first;
-        if (firstWord.isEmpty) return false;
-        final formattedFirstWord = firstWord[0].toUpperCase() + firstWord.substring(1).toLowerCase();
-        return formattedFirstWord == _selectedStaffFilter;
-      }).toList();
+      if (_selectedStaffFilter == 'Unassigned') {
+        list = list.where((d) => d.responsibleName == null || d.responsibleName!.trim().isEmpty).toList();
+      } else {
+        list = list.where((d) {
+          if (d.responsibleName == null || d.responsibleName!.trim().isEmpty) return false;
+          final firstWord = d.responsibleName!.trim().split(' ').first;
+          if (firstWord.isEmpty) return false;
+          final formattedFirstWord = firstWord[0].toUpperCase() + firstWord.substring(1).toLowerCase();
+          return formattedFirstWord == _selectedStaffFilter;
+        }).toList();
+      }
     }
     
     if (_searchQuery.isNotEmpty) {
@@ -320,11 +825,13 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
       });
     }
 
-    final staffNames = _allDeals
-        .map((d) => d.responsibleName)
-        .where((name) => name != null && name.trim().isNotEmpty)
+    final staffNames = <String>{
+      ..._allDeals.map((d) => d.responsibleName).whereType<String>(),
+      ..._allStaffList.map((s) => (s.name?.isNotEmpty == true ? s.name! : (s.username ?? ''))).where((s) => s.isNotEmpty),
+    }
+        .where((name) => name.trim().isNotEmpty)
         .map((name) {
-          final trimmed = name!.trim();
+          final trimmed = name.trim();
           final firstWord = trimmed.split(' ').first;
           if (firstWord.isEmpty) return '';
           return firstWord[0].toUpperCase() + firstWord.substring(1).toLowerCase();
@@ -444,6 +951,8 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
                 const SizedBox(width: 12),
                 _buildCompactViewToggle(),
                 const SizedBox(width: 8),
+                _buildStaffWorkloadButton(),
+                const SizedBox(width: 8),
                 _buildRefreshButton(),
                 if (!isVerification) ...[
                   const SizedBox(width: 8),
@@ -475,6 +984,8 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
                     const Spacer(),
                     _buildCompactViewToggle(),
                     const SizedBox(width: 8),
+                    _buildStaffWorkloadButton(),
+                    const SizedBox(width: 8),
                     _buildRefreshButton(),
                     if (!isVerification) ...[
                       const SizedBox(width: 8),
@@ -502,6 +1013,36 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildStaffWorkloadButton() {
+    return Tooltip(
+      message: 'Staff Workload Tracker',
+      child: InkWell(
+        onTap: _showStaffWorkloadTrackerDialog,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFBFDBFE)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.pie_chart_outline_rounded, size: 16, color: Color(0xFF2563EB)),
+              SizedBox(width: 5),
+              Text(
+                'Workload',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -685,6 +1226,17 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
                   Icon(Icons.people, size: 14, color: Color(0xFF64748B)),
                   SizedBox(width: 6),
                   Text('All Staff', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+            const DropdownMenuItem<String?>(
+              value: 'Unassigned',
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.person_off_outlined, size: 14, color: Colors.amber),
+                  SizedBox(width: 6),
+                  Text('Unassigned Works', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber)),
                 ],
               ),
             ),
@@ -1055,16 +1607,69 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
                     ),
                     Expanded(
                       flex: 1,
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 12,
-                            backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.1),
-                            child: Text((deal.responsibleName != null && deal.responsibleName!.isNotEmpty) ? deal.responsibleName![0].toUpperCase() : '?', style: const TextStyle(fontSize: 10, color: Color(0xFF2563EB), fontWeight: FontWeight.bold)),
+                      child: Tooltip(
+                        message: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                            ? 'Doing Work: ${deal.responsibleName} (Tap to change)'
+                            : 'Unassigned (Tap to assign staff)',
+                        child: InkWell(
+                          onTap: () => _showQuickAssignStaffDialog(deal),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                  ? const Color(0xFFEFF6FF)
+                                  : const Color(0xFFFFFBEB),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                    ? const Color(0xFFBFDBFE)
+                                    : const Color(0xFFFDE68A),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                      ? const Color(0xFF2563EB)
+                                      : Colors.amber.shade700,
+                                  child: Text(
+                                    (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                        ? deal.responsibleName![0].toUpperCase()
+                                        : '?',
+                                    style: const TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    (deal.responsibleName?.isNotEmpty == true)
+                                        ? deal.responsibleName!.split(' ')[0]
+                                        : 'Unassigned',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                          ? const Color(0xFF1E40AF)
+                                          : Colors.amber.shade900,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                Icon(
+                                  Icons.edit_outlined,
+                                  size: 11,
+                                  color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                      ? const Color(0xFF3B82F6)
+                                      : Colors.amber.shade700,
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text((deal.responsibleName?.isNotEmpty == true) ? deal.responsibleName!.split(' ')[0] : 'N/A', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
-                        ],
+                        ),
                       ),
                     ),
                   ],
@@ -1179,6 +1784,63 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
                       const Icon(Icons.person_outline_rounded, size: 14, color: Colors.grey),
                       const SizedBox(width: 8),
                       Expanded(child: Text(deal.clientName ?? 'N/A', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
+                      const SizedBox(width: 8),
+                      InkWell(
+                        onTap: () => _showQuickAssignStaffDialog(deal),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                ? const Color(0xFFEFF6FF)
+                                : const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                  ? const Color(0xFFBFDBFE)
+                                  : const Color(0xFFFDE68A),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircleAvatar(
+                                radius: 8,
+                                backgroundColor: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                    ? const Color(0xFF2563EB)
+                                    : Colors.amber.shade700,
+                                child: Text(
+                                  (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                      ? deal.responsibleName![0].toUpperCase()
+                                      : '?',
+                                  style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                    ? deal.responsibleName!.split(' ').first
+                                    : 'Unassigned',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                      ? const Color(0xFF1E40AF)
+                                      : Colors.amber.shade900,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Icon(
+                                Icons.edit_outlined,
+                                size: 10,
+                                color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                    ? const Color(0xFF3B82F6)
+                                    : Colors.amber.shade700,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -1737,25 +2399,62 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
                         color: deal.amount > 0 ? const Color(0xFF059669) : Colors.grey.shade400,
                       ),
                     ),
-                    if (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          CircleAvatar(
-                            radius: 9,
-                            backgroundColor: const Color(0xFFE0E7FF),
-                            child: Text(
-                              deal.responsibleName![0].toUpperCase(),
-                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF3730A3)),
+                    InkWell(
+                      onTap: () => _showQuickAssignStaffDialog(deal),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                              ? const Color(0xFFEFF6FF)
+                              : const Color(0xFFFFFBEB),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                ? const Color(0xFFBFDBFE)
+                                : const Color(0xFFFDE68A),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CircleAvatar(
+                              radius: 8,
+                              backgroundColor: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                  ? const Color(0xFF2563EB)
+                                  : Colors.amber.shade700,
+                              child: Text(
+                                (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                    ? deal.responsibleName![0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            deal.responsibleName!.split(' ').first,
-                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                  ? deal.responsibleName!.split(' ').first
+                                  : 'Unassigned',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                    ? const Color(0xFF1E40AF)
+                                    : Colors.amber.shade900,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 10,
+                              color: (deal.responsibleName != null && deal.responsibleName!.trim().isNotEmpty)
+                                  ? const Color(0xFF3B82F6)
+                                  : Colors.amber.shade700,
+                            ),
+                          ],
+                        ),
                       ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
