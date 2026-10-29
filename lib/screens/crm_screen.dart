@@ -102,14 +102,20 @@ class _CrmScreenState extends State<CrmScreen>
   ];
 
   /// Converts any DateTime into Indian Standard Time (IST, UTC+05:30)
+  /// Prevents double-shifting for timestamps that were pre-converted to IST.
   static DateTime toIst(DateTime dt) {
-    final utc = dt.isUtc ? dt : dt.toUtc();
-    return utc.add(const Duration(hours: 5, minutes: 30));
+    if (dt.isUtc) {
+      // The numbers are already in IST (stored with 'Z' by meta_service after pre-adding 5:30).
+      // Return a local DateTime with exact year, month, day, hour, minute:
+      return DateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.millisecond);
+    }
+    return dt;
   }
 
   /// Current Indian Standard Time (IST, UTC+05:30)
   static DateTime get nowIst {
-    return DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+    final now = DateTime.now();
+    return now.isUtc ? now.add(const Duration(hours: 5, minutes: 30)) : now;
   }
 
   Timer? _reminderTimer;

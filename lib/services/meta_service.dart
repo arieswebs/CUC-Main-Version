@@ -168,12 +168,13 @@ class MetaLead {
       final parsed = DateTime.tryParse(createdTimeStr);
       if (parsed != null) {
         final utc = parsed.isUtc ? parsed : parsed.toUtc();
-        createdTime = utc.add(const Duration(hours: 5, minutes: 30));
+        final ist = utc.add(const Duration(hours: 5, minutes: 30));
+        createdTime = DateTime(ist.year, ist.month, ist.day, ist.hour, ist.minute, ist.second, ist.millisecond);
       } else {
-        createdTime = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+        createdTime = DateTime.now();
       }
     } else {
-      createdTime = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+      createdTime = DateTime.now();
     }
 
     String name = 'Meta Lead';
@@ -567,9 +568,7 @@ class MetaLeadService {
         if (lead.campaignName != null && lead.campaignName!.isNotEmpty) {
           alertMsg.writeln('🏷️ *Campaign:* ${lead.campaignName}');
         }
-        final istTime = lead.createdTime.isUtc
-            ? lead.createdTime.add(const Duration(hours: 5, minutes: 30))
-            : lead.createdTime;
+        final istTime = lead.createdTime;
         alertMsg.writeln('⏰ *Time (IST):* ${DateFormat('dd-MMM-yyyy hh:mm a').format(istTime)}');
         alertMsg.writeln('');
         alertMsg.writeln('👉 *Cochin United Consultancy CRM*');
