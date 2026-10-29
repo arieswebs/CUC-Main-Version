@@ -91,7 +91,12 @@ class _ChecklistScreenState extends State<ChecklistScreen> with SingleTickerProv
         'id': u['id'],
       };
     }).toList();
-    _deals = await DealService().getAllDeals();
+    final allDeals = await DealService().getAllDeals();
+    _deals = allDeals.where((d) {
+      final isCrm = d.pipeline.toLowerCase() == 'crm' || d.pipeline.toLowerCase() == 'lead';
+      if (isCrm && !d.isWon) return false;
+      return true;
+    }).toList();
     
     final sariga = _users.firstWhere(
       (u) => (u['name'] ?? '').toString().toLowerCase().contains('sariga'), 

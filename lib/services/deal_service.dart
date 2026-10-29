@@ -8,6 +8,7 @@ import '../models/deal.dart' as old;
 import '../models/deal_activity.dart' as oldActivity;
 import 'notification_service.dart';
 import 'meta_service.dart';
+import 'logging_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cuc_app/services/backup_aware_api.dart';
 
@@ -149,34 +150,56 @@ class DealService {
       }
 
       if (dealId != null) {
-        await addActivity(oldActivity.DealActivity(
-          dealId: dealId,
-          type: 'status',
-          title: 'Work Created',
-          description: 'Project pipeline started at stage: ${deal.stage}',
-          createdBy: userId ?? 1,
-        ));
+        final isCrmLead = (deal.pipeline.toLowerCase() == 'crm' || deal.pipeline.toLowerCase() == 'lead') && !deal.isWon;
 
-        if (sendNotification) {
-          await NotificationService().notifyStakeholders(
-            title: 'New Work Created',
-            message: '${userName ?? 'A staff member'} created a new work: ${deal.name}',
+        if (isCrmLead) {
+          // CRM Lead only - Work File is NOT created until "Pass to Work"
+          await addActivity(oldActivity.DealActivity(
             dealId: dealId,
-          );
-        }
-
-        // Send lively WhatsApp notification to assigned staff member
-        final assignedStaffId = values['responsible_id'];
-        if (assignedStaffId != null) {
-          unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
-            staffUserId: assignedStaffId,
-            assignmentTitle: deal.name,
-            workOrTaskType: 'New Work Assignment',
-            clientName: deal.clientName,
-            priority: deal.priority,
-            assignedByName: userName ?? 'Management',
-            details: deal.description ?? 'New work assigned to you in CUC System.',
+            type: 'status',
+            title: 'Lead Created',
+            description: 'CRM lead inquiry registered at stage: ${deal.stage}',
+            createdBy: userId ?? 1,
           ));
+
+          if (sendNotification) {
+            await NotificationService().notifyStakeholders(
+              title: 'New Lead Created',
+              message: '${userName ?? 'A staff member'} created a new CRM lead: ${deal.name}',
+              dealId: dealId,
+            );
+          }
+        } else {
+          // Direct Work Project / Work File created
+          await addActivity(oldActivity.DealActivity(
+            dealId: dealId,
+            type: 'status',
+            title: 'Work Created',
+            description: 'Project pipeline started at stage: ${deal.stage}',
+            createdBy: userId ?? 1,
+          ));
+
+          if (sendNotification) {
+            await NotificationService().notifyStakeholders(
+              title: 'New Work Created',
+              message: '${userName ?? 'A staff member'} created a new work: ${deal.name}',
+              dealId: dealId,
+            );
+          }
+
+          // Send lively WhatsApp notification to assigned staff member
+          final assignedStaffId = values['responsible_id'];
+          if (assignedStaffId != null) {
+            unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+              staffUserId: assignedStaffId,
+              assignmentTitle: deal.name,
+              workOrTaskType: 'New Work Assignment',
+              clientName: deal.clientName,
+              priority: deal.priority,
+              assignedByName: userName ?? 'Management',
+              details: deal.description ?? 'New work assigned to you in CUC System.',
+            ));
+          }
         }
       }
 
@@ -277,7 +300,12 @@ class DealService {
       clientId: int.tryParse(clientId) ?? lead.clientId,
       clientName: clientName,
       isWon: true,
-      stage: (lead.stage == 'Registration' || lead.stage == 'Contact Customer' || lead.stage == 'Lead')
+      stage: (lead.stage == 'Registration' ||
+              lead.stage == 'Contact Customer' ||
+              lead.stage == 'Lead' ||
+              lead.stage == 'Created' ||
+              lead.stage == 'Follow-up' ||
+              lead.stage == 'Passed to Work')
           ? 'Work Started'
           : lead.stage,
       closedAt: DateTime.now(),
@@ -289,16 +317,46 @@ class DealService {
     await addActivity(oldActivity.DealActivity(
       dealId: lead.id!,
       type: 'status',
-      title: 'Lead Passed to Work & Client',
-      description: 'Passed from CRM into active Work Management and registered as Client in Client Management.',
+      title: 'Lead Passed to Work & Work File Created',
+      description: 'Passed from CRM into active Work Management as an official Work File and registered in Client Management.',
       createdBy: currentUserId ?? 1,
     ));
 
+    try {
+      await LoggingService().logAction(
+        action: 'WORK_FILE_CREATED',
+        targetType: 'WorkFile',
+        targetId: lead.name,
+        details: 'Work File created by passing CRM lead "${lead.name}" for client "$clientName"',
+      );
+      await LoggingService().logAction(
+        action: 'WORK_CREATED',
+        targetType: 'Work',
+        targetId: lead.name,
+        details: 'Work activated from CRM lead for $clientName',
+      );
+    } catch (_) {}
+
     await NotificationService().notifyStakeholders(
       title: 'CRM Lead Passed to Work',
-      message: 'Lead "${lead.name}" for client "$clientName" was passed to Work Management.',
+      message: 'Lead "${lead.name}" for client "$clientName" was passed to Work Management & Work File created.',
       dealId: lead.id,
     );
+
+    // Send WhatsApp notification to assigned staff member if assigned
+    if (lead.responsibleId != null) {
+      final prefs = await SharedPreferences.getInstance();
+      final currentUserName = prefs.getString('user_name') ?? prefs.getString('current_user_name') ?? 'Management';
+      unawaited(WhatsAppCloudService().notifyStaffOfAssignment(
+        staffUserId: lead.responsibleId,
+        assignmentTitle: lead.name,
+        workOrTaskType: 'Work File (Passed from CRM)',
+        clientName: clientName,
+        priority: lead.priority,
+        assignedByName: currentUserName,
+        details: lead.description ?? 'Lead passed to Work File and assigned to you in CUC System.',
+      ));
+    }
   }
 
   Future<void> moveDealToStage(dynamic dealId, String fromStage, String toStage) async {

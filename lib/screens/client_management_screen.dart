@@ -1,6 +1,7 @@
 import 'package:amplify_api/amplify_api.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:collection/collection.dart';
 import 'package:cuc_app/services/backup_aware_api.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:amplify_flutter/amplify_flutter.dart';
@@ -29,11 +30,26 @@ class ClientManagementScreen extends StatefulWidget {
 class _ClientManagementScreenState extends State<ClientManagementScreen> {
   final _excel = ExcelService();
   final _auth = AuthService();
+  static final DateTime nov1Cutoff = DateTime(2026, 11, 1);
+  String _selectedPeriod = '2026-2027'; // Starts fresh from Nov 1, 2026
   List<Client> _clients = [];
+  List<amplify_models.Clients> _rawClients = [];
   bool _isLoading = true;
   bool _isAdmin = false;
   String _searchTerm = '';
   String _currentSort = 'Name (A-Z)';
+
+  DateTime _getClientDate(Client c) {
+    if (c.createdAt != null && c.createdAt!.isNotEmpty) {
+      final parsed = DateTime.tryParse(c.createdAt!);
+      if (parsed != null) return parsed.toLocal();
+    }
+    return DateTime(2000);
+  }
+
+  int get _count2025_2026 => _clients.where((c) => _getClientDate(c).isBefore(nov1Cutoff)).length;
+  int get _count2026_2027 => _clients.where((c) => !_getClientDate(c).isBefore(nov1Cutoff)).length;
+  int get _countAll => _clients.length;
 
   void _applySort() {
     switch (_currentSort) {
@@ -130,6 +146,7 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
       print('DEBUG: clientCreators mapping: $clientCreators');
       if (!mounted) return;
       setState(() {
+        _rawClients = clientsList;
         _clients = clientsList.map((m) {
           final mappedCreator = clientCreators[m.id] ?? clientCreators[m.name ?? ''] ?? 'System/Legacy';
           print('DEBUG: Client ${m.name} (${m.id}) mapped to creator: $mappedCreator');
@@ -148,7 +165,7 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
             balanceDue: m.balance_due,
             registrationNumber: m.case_number,
             createdBy: mappedCreator,
-            createdAt: m.createdAt?.format() ?? m.created_at,
+            createdAt: (m.created_at != null && m.created_at!.isNotEmpty) ? m.created_at : m.createdAt?.format(),
           );
         }).toList();
         _applySort();
@@ -182,6 +199,424 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
         allClients: _clients,
         onMerged: () {
           _fetchClients();
+        },
+      ),
+    );
+  }
+
+  Future<void> _importSingleClientToCurrent(Client client) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.drive_file_move_rounded, color: Color(0xFF10B981)),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text('Import Client to Current?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+        content: Text(
+          'Do you want to import client "${client.name}" into the current period (2026-2027)?\n\nThe client record will be carried forward to start from the current period.',
+          style: const TextStyle(fontSize: 14, color: Color(0xFF334155)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.drive_file_move_rounded, size: 16),
+            label: const Text('Import to 2026-2027'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final targetDate = DateTime.now().isBefore(nov1Cutoff)
+          ? DateTime(2026, 11, 1, 0, 0, 1)
+          : DateTime.now();
+      final targetDateStr = targetDate.toIso8601String();
+
+      final raw = _rawClients.where((m) => m.id == client.id).firstOrNull;
+      if (raw != null) {
+        final updated = raw.copyWith(created_at: targetDateStr);
+        await BackupAwareApi().update(updated);
+      } else {
+        final model = amplify_models.Clients(
+          id: client.id,
+          name: client.name,
+          email: client.email,
+          phone: client.phone,
+          address: client.address,
+          type_of_work: client.typeOfWork,
+          file_no: client.fileNo,
+          file_date: client.fileDate,
+          is_contacted: client.isContacted,
+          dob: client.dob,
+          managed_by: client.managedBy,
+          case_number: client.registrationNumber,
+          companies: client.companies,
+          custom_fields: client.customFields,
+          created_at: targetDateStr,
+        );
+        await BackupAwareApi().update(model);
+      }
+
+      await LoggingService().logAction(
+        action: 'CLIENT_IMPORTED',
+        targetType: 'Client',
+        targetId: client.name,
+        details: 'Imported client "${client.name}" to 2026-2027 period',
+      );
+
+      if (mounted) {
+        _showSuccess('Successfully imported "${client.name}" to 2026-2027!');
+        setState(() {
+          _selectedPeriod = '2026-2027';
+        });
+        await _fetchClients();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showError('Error importing client: $e');
+      }
+    }
+  }
+
+  Future<void> _showImportToCurrentDialog() async {
+    final candidates = _clients.where((c) => _getClientDate(c).isBefore(nov1Cutoff)).toList();
+    if (candidates.isEmpty) {
+      _showError('No 2025-2026 clients available to import.');
+      return;
+    }
+
+    final searchCtrl = TextEditingController();
+    final selectedIds = <dynamic>{};
+    bool isImporting = false;
+    int importedCount = 0;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final query = searchCtrl.text.toLowerCase().trim();
+          final displayed = query.isEmpty
+              ? candidates
+              : candidates.where((c) =>
+                  c.name.toLowerCase().contains(query) ||
+                  (c.phone?.toLowerCase().contains(query) ?? false) ||
+                  (c.fileNo?.toLowerCase().contains(query) ?? false) ||
+                  (c.registrationNumber?.toLowerCase().contains(query) ?? false)
+                ).toList();
+
+          final allDisplayedSelected = displayed.isNotEmpty && displayed.every((c) => selectedIds.contains(c.id));
+
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620, maxHeight: 680),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.drive_file_move_rounded, color: Color(0xFF10B981), size: 24),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Import Clients to Current',
+                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Select clients from 2025-2026 to carry forward into 2026-2027',
+                                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: isImporting ? null : () => Navigator.pop(ctx),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: searchCtrl,
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'Search by client name, phone, or file no...',
+                        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF10B981))),
+                        fillColor: const Color(0xFFF8FAFC),
+                        filled: true,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Text(
+                          '${selectedIds.length} selected of ${candidates.length} clients',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: isImporting
+                              ? null
+                              : () {
+                                  setDialogState(() {
+                                    if (allDisplayedSelected) {
+                                      for (var c in displayed) {
+                                        selectedIds.remove(c.id);
+                                      }
+                                    } else {
+                                      for (var c in displayed) {
+                                        if (c.id != null) selectedIds.add(c.id);
+                                      }
+                                    }
+                                  });
+                                },
+                          child: Text(
+                            allDisplayedSelected ? 'Deselect All' : 'Select All',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 1),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: displayed.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.person_off_rounded, size: 40, color: Colors.grey.shade300),
+                                  const SizedBox(height: 8),
+                                  Text('No matching clients found', style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: displayed.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 6),
+                              itemBuilder: (context, i) {
+                                final c = displayed[i];
+                                final isChecked = selectedIds.contains(c.id);
+                                final date = _getClientDate(c);
+                                final dateStr = '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+                                return Material(
+                                  color: isChecked ? const Color(0xFF10B981).withValues(alpha: 0.08) : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(10),
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(10),
+                                    onTap: isImporting
+                                        ? null
+                                        : () {
+                                            setDialogState(() {
+                                              if (isChecked) {
+                                                selectedIds.remove(c.id);
+                                              } else {
+                                                if (c.id != null) selectedIds.add(c.id);
+                                              }
+                                            });
+                                          },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      child: Row(
+                                        children: [
+                                          Checkbox(
+                                            value: isChecked,
+                                            activeColor: const Color(0xFF10B981),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                            onChanged: isImporting
+                                                ? null
+                                                : (val) {
+                                                    setDialogState(() {
+                                                      if (val == true) {
+                                                        if (c.id != null) selectedIds.add(c.id);
+                                                      } else {
+                                                        selectedIds.remove(c.id);
+                                                      }
+                                                    });
+                                                  },
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  c.name,
+                                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1E293B)),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  '${c.phone?.isNotEmpty == true ? c.phone! : "No Phone"}${c.fileNo?.isNotEmpty == true ? " • File: ${c.fileNo}" : ""}${c.registrationNumber?.isNotEmpty == true ? " • Reg: ${c.registrationNumber}" : ""} • Date: $dateStr',
+                                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (isImporting)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF10B981))),
+                            const SizedBox(width: 12),
+                            Text('Importing $importedCount of ${selectedIds.length}...', style: const TextStyle(fontSize: 13, color: Color(0xFF475569))),
+                          ],
+                        ),
+                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: isImporting ? null : () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: (selectedIds.isEmpty || isImporting)
+                              ? null
+                              : () async {
+                                  setDialogState(() {
+                                    isImporting = true;
+                                    importedCount = 0;
+                                  });
+
+                                  final targetDate = DateTime.now().isBefore(nov1Cutoff)
+                                      ? DateTime(2026, 11, 1, 0, 0, 1)
+                                      : DateTime.now();
+                                  final targetDateStr = targetDate.toIso8601String();
+
+                                  for (final id in selectedIds) {
+                                    final match = candidates.firstWhereOrNull((c) => c.id == id);
+                                    if (match != null) {
+                                      try {
+                                        final raw = _rawClients.where((m) => m.id == match.id).firstOrNull;
+                                        if (raw != null) {
+                                          final updated = raw.copyWith(created_at: targetDateStr);
+                                          await BackupAwareApi().update(updated);
+                                        } else {
+                                          final model = amplify_models.Clients(
+                                            id: match.id,
+                                            name: match.name,
+                                            email: match.email,
+                                            phone: match.phone,
+                                            address: match.address,
+                                            type_of_work: match.typeOfWork,
+                                            file_no: match.fileNo,
+                                            file_date: match.fileDate,
+                                            is_contacted: match.isContacted,
+                                            dob: match.dob,
+                                            managed_by: match.managedBy,
+                                            case_number: match.registrationNumber,
+                                            companies: match.companies,
+                                            custom_fields: match.customFields,
+                                            created_at: targetDateStr,
+                                          );
+                                          await BackupAwareApi().update(model);
+                                        }
+                                        await LoggingService().logAction(
+                                          action: 'CLIENT_IMPORTED',
+                                          targetType: 'Client',
+                                          targetId: match.name,
+                                          details: 'Imported client "${match.name}" to 2026-2027 period',
+                                        );
+                                      } catch (e) {
+                                        debugPrint('Error importing client ${match.name}: $e');
+                                      }
+                                    }
+                                    setDialogState(() {
+                                      importedCount++;
+                                    });
+                                  }
+
+                                  if (ctx.mounted) Navigator.pop(ctx);
+
+                                  if (mounted) {
+                                    setState(() {
+                                      _selectedPeriod = '2026-2027';
+                                    });
+                                    await _fetchClients();
+                                    if (!mounted) return;
+                                    _showSuccess('Successfully imported ${selectedIds.length} client(s) into 2026-2027!');
+                                  }
+                                },
+                          icon: const Icon(Icons.drive_file_move_rounded, size: 18),
+                          label: Text(
+                            selectedIds.isEmpty ? 'Select Clients to Import' : 'Import (${selectedIds.length})',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
         },
       ),
     );
@@ -1017,12 +1452,163 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
     );
   }
 
+  Widget _buildPeriodSelector() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16, bottom: 8),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _buildPeriodChip(
+            id: '2026-2027',
+            title: '2026-2027 (Current)',
+            subtitle: 'From Nov 1, 2026',
+            icon: Icons.fiber_new_rounded,
+            count: _count2026_2027,
+            activeColor: const Color(0xFF10B981),
+          ),
+          _buildPeriodChip(
+            id: '2025-2026',
+            title: '2025-2026',
+            subtitle: 'Till Nov 1, 2026',
+            icon: Icons.history_rounded,
+            count: _count2025_2026,
+            activeColor: const Color(0xFF6366F1),
+          ),
+          _buildPeriodChip(
+            id: 'All',
+            title: 'All Clients',
+            subtitle: 'Complete Archive',
+            icon: Icons.people_alt_rounded,
+            count: _countAll,
+            activeColor: AppTheme.primaryColor,
+          ),
+          if (_count2025_2026 > 0)
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: ElevatedButton.icon(
+                onPressed: _showImportToCurrentDialog,
+                icon: const Icon(Icons.drive_file_move_outlined, size: 16),
+                label: const Text('Import to Current', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF10B981),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  elevation: 0,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodChip({
+    required String id,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required int count,
+    required Color activeColor,
+  }) {
+    final isSelected = _selectedPeriod == id;
+    return InkWell(
+      onTap: () {
+        setState(() {
+          _selectedPeriod = id;
+        });
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? activeColor : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF1E293B),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF94A3B8),
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: isSelected ? Colors.white.withValues(alpha: 0.25) : const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                count.toString(),
+                style: TextStyle(
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isWide = constraints.maxWidth > 900;
-        final filtered = _clients.where((c) => 
+        var periodFiltered = _clients;
+        if (_selectedPeriod == '2025-2026') {
+          periodFiltered = _clients.where((c) => _getClientDate(c).isBefore(nov1Cutoff)).toList();
+        } else if (_selectedPeriod == '2026-2027') {
+          periodFiltered = _clients.where((c) => !_getClientDate(c).isBefore(nov1Cutoff)).toList();
+        }
+
+        final filtered = periodFiltered.where((c) => 
           c.name.toLowerCase().contains(_searchTerm.toLowerCase()) ||
           (c.phone?.contains(_searchTerm) ?? false) ||
           (c.fileNo?.toLowerCase().contains(_searchTerm.toLowerCase()) ?? false) ||
@@ -1177,10 +1763,95 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
                 ],
               ).animate().fadeIn().slideY(begin: 0.1),
             ],
-            const SizedBox(height: 24),
+            _buildPeriodSelector(),
+            const SizedBox(height: 16),
             Expanded(
               child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
+                : filtered.isEmpty
+                    ? Center(
+                        child: _selectedPeriod == '2026-2027'
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF10B981).withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.auto_awesome_rounded, size: 48, color: Color(0xFF10B981)),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'Fresh Start: 2026-2027',
+                                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Starting fresh from Nov 1, 2026! No new clients registered yet.\nPrevious clients are safely archived in the "2025-2026" button ($_count2025_2026 clients).',
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 20),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 12,
+                                    alignment: WrapAlignment.center,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            _selectedPeriod = '2025-2026';
+                                          });
+                                        },
+                                        icon: const Icon(Icons.history_rounded, size: 18),
+                                        label: Text('Open 2025-2026 Clients ($_count2025_2026)'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF6366F1),
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                          elevation: 2,
+                                        ),
+                                      ),
+                                      if (_count2025_2026 > 0)
+                                        ElevatedButton.icon(
+                                          onPressed: _showImportToCurrentDialog,
+                                          icon: const Icon(Icons.drive_file_move_rounded, size: 18),
+                                          label: const Text('Import from 2025-2026'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFF10B981),
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            elevation: 2,
+                                          ),
+                                        ),
+                                      OutlinedButton.icon(
+                                        onPressed: () => _showClientForm(),
+                                        icon: const Icon(Icons.add, size: 18),
+                                        label: const Text('Add Client'),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: AppTheme.primaryColor,
+                                          side: const BorderSide(color: AppTheme.primaryColor),
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              )
+                            : Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.person_off_rounded, size: 64, color: Colors.grey.shade300),
+                                  const SizedBox(height: 16),
+                                  Text('No clients found for this period', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+                                ],
+                              ),
+                      )
                 : ListView.builder(
                     padding: const EdgeInsets.only(bottom: 24, right: 16), // Padding for scrollbar
                     itemCount: filtered.length,
@@ -1406,6 +2077,17 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                 ),
+                if (_getClientDate(c).isBefore(nov1Cutoff))
+                  OutlinedButton.icon(
+                    onPressed: () => _importSingleClientToCurrent(c),
+                    icon: const Icon(Icons.drive_file_move_outlined, size: 16),
+                    label: const Text('Import to Current'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF10B981),
+                      side: const BorderSide(color: Color(0xFF10B981)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 if (_isAdmin)
                   OutlinedButton.icon(
                     onPressed: () => _deleteClient(c.id.toString()),
@@ -1470,7 +2152,7 @@ class _ClientBillsDialogState extends State<_ClientBillsDialog> {
     });
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.white,

@@ -1677,7 +1677,12 @@ class _InvoiceCreatorPageState extends State<InvoiceCreatorPage> {
       final res = await Amplify.API.query(request: req).response;
       if (mounted) {
         setState(() {
-          _clientDeals = res.data?.items.whereType<Deals>().toList() ?? [];
+          final rawDeals = res.data?.items.whereType<Deals>().toList() ?? [];
+          _clientDeals = rawDeals.where((d) {
+            final isCrm = (d.pipeline ?? '').toLowerCase() == 'crm' || (d.pipeline ?? '').toLowerCase() == 'lead';
+            if (isCrm && d.is_won != true) return false;
+            return true;
+          }).toList();
           if (_clientDeals.length == 1) {
             _selectedDealId = _clientDeals.first.id;
           } else if (_clientDeals.isNotEmpty && !_clientDeals.any((d) => d.id == _selectedDealId)) {

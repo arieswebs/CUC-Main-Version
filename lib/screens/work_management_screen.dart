@@ -28,6 +28,13 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   String _sortOption = 'Newest First';
+  static final DateTime nov1Cutoff = DateTime(2026, 11, 1);
+  String _selectedPeriod = 'All'; // 'All', '2026-2027', '2025-2026'
+
+  DateTime _getDealDate(Deal d) {
+    if (d.createdAt != null) return d.createdAt!;
+    return DateTime(2000);
+  }
   bool _showOnlyMyWorks = true;
   bool _isBoardView = true;
   String? _selectedStaffFilter;
@@ -240,6 +247,11 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
       }
       return true;
     }).toList();
+    if (_selectedPeriod == '2025-2026') {
+      list = list.where((d) => _getDealDate(d).isBefore(nov1Cutoff)).toList();
+    } else if (_selectedPeriod == '2026-2027') {
+      list = list.where((d) => !_getDealDate(d).isBefore(nov1Cutoff)).toList();
+    }
     if (widget.showOnlyVerification) {
       list = list.where((d) => d.stage.toLowerCase() == 'verification').toList();
     }
@@ -367,7 +379,7 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
     final double width = MediaQuery.of(context).size.width;
     final bool isWide = width > 1180;
     final isVerification = widget.showOnlyVerification;
-    final bool hasActiveFilters = _searchQuery.isNotEmpty || !_showOnlyMyWorks || _selectedStaffFilter != null;
+    final bool hasActiveFilters = _searchQuery.isNotEmpty || !_showOnlyMyWorks || _selectedStaffFilter != null || _selectedPeriod != 'All';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -419,6 +431,8 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
                 _buildScopeSegment(),
                 const SizedBox(width: 10),
                 _buildStaffDropdown(staffNames),
+                const SizedBox(width: 10),
+                _buildPeriodDropdown(),
                 const SizedBox(width: 10),
                 _buildSortDropdown(),
                 if (hasActiveFilters) ...[
@@ -477,6 +491,8 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
                     const SizedBox(width: 8),
                     _buildStaffDropdown(staffNames),
                     const SizedBox(width: 8),
+                    _buildPeriodDropdown(),
+                    const SizedBox(width: 8),
                     _buildSortDropdown(),
                     if (hasActiveFilters) ...[
                       const SizedBox(width: 8),
@@ -519,6 +535,7 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
             _searchController.clear();
             _showOnlyMyWorks = true;
             _selectedStaffFilter = null;
+            _selectedPeriod = 'All';
           });
         },
         borderRadius: BorderRadius.circular(8),
@@ -793,6 +810,35 @@ class _WorkManagementScreenState extends State<WorkManagementScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodDropdown() {
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _selectedPeriod != 'All' ? const Color(0xFF6366F1) : Colors.grey.shade300,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedPeriod,
+          icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B), size: 20),
+          style: const TextStyle(fontSize: 12.5, color: Color(0xFF1E293B), fontWeight: FontWeight.w600),
+          items: const [
+            DropdownMenuItem(value: 'All', child: Text('All Periods')),
+            DropdownMenuItem(value: '2026-2027', child: Text('2026-2027 (From Nov 1)')),
+            DropdownMenuItem(value: '2025-2026', child: Text('2025-2026 (Till Nov 1)')),
+          ],
+          onChanged: (val) {
+            if (val != null) setState(() => _selectedPeriod = val);
+          },
+        ),
       ),
     );
   }

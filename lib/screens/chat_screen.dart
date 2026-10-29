@@ -248,7 +248,12 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _showWorkPicker() async {
     final dealService = DealService();
     try {
-      final deals = await dealService.getAllDeals();
+      final allDeals = await dealService.getAllDeals();
+      final deals = allDeals.where((d) {
+        final isCrm = d.pipeline.toLowerCase() == 'crm' || d.pipeline.toLowerCase() == 'lead';
+        if (isCrm && !d.isWon) return false;
+        return true;
+      }).toList();
       if (!mounted) return;
       
       showModalBottomSheet(

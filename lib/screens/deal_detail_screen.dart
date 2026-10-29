@@ -1250,7 +1250,11 @@ final dLink = "";
 
       if (widget.deal == null) {
         await _dealService.createDeal(deal);
-        await LoggingService().logAction(action: 'WORK_CREATED', targetType: 'Work', targetId: deal.name, details: 'Created work for ${deal.clientName}');
+        if (_pipeline.toLowerCase() != 'crm' || _isWon) {
+          await LoggingService().logAction(action: 'WORK_CREATED', targetType: 'Work', targetId: deal.name, details: 'Created work for ${deal.clientName}');
+        } else {
+          await LoggingService().logAction(action: 'LEAD_CREATED', targetType: 'Lead', targetId: deal.name, details: 'Created CRM lead inquiry for ${deal.clientName}');
+        }
       } else {
         await _dealService.updateDeal(deal);
         await LoggingService().logAction(action: 'WORK_UPDATED', targetType: 'Work', targetId: deal.id.toString(), details: 'Updated work: ${deal.name}');
@@ -1618,6 +1622,16 @@ final dLink = "";
 
   Future<void> _openWorkFileDialog() async {
     if (widget.deal == null) return;
+    if (_pipeline.toLowerCase() == 'crm' && !_isWon) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This is a CRM lead. Pass it to Work & Client to create and open its Work File.'),
+          backgroundColor: Color(0xFFF59E0B),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     try {
       final req = ModelQueries.list(amplify_models.Deals.classType, where: amplify_models.Deals.ID.eq(widget.deal!.id.toString()), limit: 10000);
       final res = await Amplify.API.query(request: req).response;

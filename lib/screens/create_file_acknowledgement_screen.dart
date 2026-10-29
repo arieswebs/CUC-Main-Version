@@ -225,7 +225,12 @@ class _CreateFileAcknowledgementScreenState extends State<CreateFileAcknowledgem
     setState(() => _isLoading = true);
     List<Deal> deals = [];
     try {
-      deals = await DealService().getAllDeals();
+      final allDeals = await DealService().getAllDeals();
+      deals = allDeals.where((d) {
+        final isCrm = d.pipeline.toLowerCase() == 'crm' || d.pipeline.toLowerCase() == 'lead';
+        if (isCrm && !d.isWon) return false;
+        return true;
+      }).toList();
     } catch(e) {
       debugPrint('Error fetching deals: $e');
     }
